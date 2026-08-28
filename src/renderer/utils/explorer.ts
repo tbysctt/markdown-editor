@@ -50,3 +50,20 @@ export function getParentDirForCreate(
 
   return selectedPath.slice(0, lastSep) || rootPath;
 }
+
+export function isPathWithinDirectory(
+  dirPath: string,
+  targetPath: string,
+): boolean {
+  if (targetPath === dirPath) {
+    return true;
+  }
+
+  const normalizedDir = dirPath.replace(/\\/g, '/');
+  const normalizedTarget = targetPath.replace(/\\/g, '/');
+  return (
+    normalizedTarget.startsWith(`${normalizedDir}/`) ||
+    targetPath.startsWith(`${dirPath}/`) ||
+    targetPath.startsWith(`${dirPath}\\`)
+  );
+}

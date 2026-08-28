@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FileTreeNode } from '../types/electron';
 import type { OpenTabOptions } from '../types/workspace';
 import { isMarkdownFile } from '../types/workspace';
+import { isPathWithinDirectory } from '../utils/explorer';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -15,6 +16,7 @@ interface FileTreeNodeRowProps {
   rootPath: string;
   activeFilePath: string | null;
   selectedPath: string | null;
+  revealPath: string | null;
   onSelect: (path: string) => void;
   onOpenFile: (filePath: string, options?: OpenTabOptions) => void;
   onContextMenu: (
@@ -30,17 +32,27 @@ export function FileTreeNodeRow({
   rootPath,
   activeFilePath,
   selectedPath,
+  revealPath,
   onSelect,
   onOpenFile,
   onContextMenu,
 }: FileTreeNodeRowProps) {
-  const [expanded, setExpanded] = useState(depth === 0);
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDirectory = node.type === 'directory';
+  const containsReveal = Boolean(
+    isDirectory && revealPath && isPathWithinDirectory(node.path, revealPath),
+  );
+  const [expanded, setExpanded] = useState(depth === 0 || containsReveal);
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMarkdown = !isDirectory && isMarkdownFile(node.path);
   const isActive = !isDirectory && node.path === activeFilePath;
   const isSelected = node.path === selectedPath;
   const isRoot = node.path === rootPath;
+
+  useEffect(() => {
+    if (containsReveal) {
+      setExpanded(true);
+    }
+  }, [containsReveal]);
 
   const handleClick = () => {
     onSelect(node.path);
@@ -97,6 +109,7 @@ export function FileTreeNodeRow({
         type="button"
         className={classNames}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
+        data-path={node.path}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onContextMenu={(event) => {
@@ -125,6 +138,7 @@ export function FileTreeNodeRow({
               rootPath={rootPath}
               activeFilePath={activeFilePath}
               selectedPath={selectedPath}
+              revealPath={revealPath}
               onSelect={onSelect}
               onOpenFile={onOpenFile}
               onContextMenu={onContextMenu}

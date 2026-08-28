@@ -15,6 +15,7 @@ import type { WorkspaceMatch } from '../utils/workspaceSearch';
 
 interface WorkspaceViewProps {
   rootPath: string;
+  onRegisterActions?: (actions: { openFile: (path: string) => void } | null) => void;
 }
 
 type RenamePromptState =
@@ -28,7 +29,7 @@ type RenamePromptState =
       tabId: string;
     };
 
-export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
+export function WorkspaceView({ rootPath, onRegisterActions }: WorkspaceViewProps) {
   const [namePrompt, setNamePrompt] = useState<{
     type: 'file' | 'folder';
     parentDir: string;
@@ -67,6 +68,20 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
   } = useWorkspace({ rootPath });
 
   activeTabIdRef.current = activeTabId;
+
+  useEffect(() => {
+    onRegisterActions?.({
+      openFile: (path) => {
+        setSidebarView('explorer');
+        setSelectedPath(path);
+        void openTab(path, { preview: false });
+      },
+    });
+
+    return () => {
+      onRegisterActions?.(null);
+    };
+  }, [onRegisterActions, openTab, setSelectedPath]);
 
   const openFindInActivePanel = useCallback(
     (query?: string, matchIndex?: number) => {

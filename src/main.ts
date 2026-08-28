@@ -398,6 +398,11 @@ const buildMenu = (): Menu => {
           accelerator: 'CmdOrCtrl+Shift+F',
           click: () => sendMenuAction('find-in-workspace'),
         },
+        {
+          label: 'Quick Open…',
+          accelerator: 'CmdOrCtrl+K',
+          click: () => sendMenuAction('command-palette'),
+        },
       ],
     },
     { label: 'Format', submenu: formatSubmenu },

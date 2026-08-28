@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  CommandPalette,
+  type CommandPaletteItem,
+} from './components/CommandPalette';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { SingleDocumentView } from './components/SingleDocumentView';
 import { WorkspaceView } from './components/WorkspaceView';
-import { addRecentPath } from './utils/recentPaths';
+import { getFileName } from './utils/markdown';
+import { addRecentPath, getRecentDisplayPath } from './utils/recentPaths';
+import { collectMarkdownFiles } from './utils/workspaceSearch';
 
 type AppMode =
   | { kind: 'welcome' }
@@ -13,9 +19,35 @@ type AppMode =
     }
   | { kind: 'folder'; rootPath: string };
 
+const COMMAND_ITEMS: CommandPaletteItem[] = [
+  { kind: 'command', id: 'open-folder', label: 'Open folder' },
+  { kind: 'command', id: 'open-document', label: 'Open document' },
+];
+
+function buildFileItems(filePaths: string[]): CommandPaletteItem[] {
+  return [...filePaths]
+    .sort((left, right) =>
+      getFileName(left).localeCompare(getFileName(right), undefined, {
+        sensitivity: 'base',
+      }),
+    )
+    .map((path) => ({
+      kind: 'file' as const,
+      path,
+      label: getFileName(path),
+      detail: getRecentDisplayPath(path),
+    }));
+}
+
 export function App() {
   const [mode, setMode] = useState<AppMode>({ kind: 'welcome' });
   const [singleSessionKey, setSingleSessionKey] = useState(0);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [paletteFilesLoading, setPaletteFilesLoading] = useState(false);
+  const [paletteFilePaths, setPaletteFilePaths] = useState<string[]>([]);
+  const workspaceActionsRef = useRef<{
+    openFile: (path: string) => void;
+  } | null>(null);
 
   const enterSingleMode = useCallback(
     (initialDocument?: { path: string; content: string } | null) => {
@@ -72,6 +104,59 @@ export function App() {
     openFolder(path);
   };
 
+  const paletteItems = useMemo(() => {
+    if (mode.kind !== 'folder') {
+      return COMMAND_ITEMS;
+    }
+
+    return [...COMMAND_ITEMS, ...buildFileItems(paletteFilePaths)];
+  }, [mode.kind, paletteFilePaths]);
+
+  const handlePaletteSelect = useCallback(
+    (item: CommandPaletteItem) => {
+      setCommandPaletteOpen(false);
+
+      if (item.kind === 'command') {
+        if (item.id === 'open-folder') {
+          void handleOpenFolder();
+        } else {
+          void handleOpenExisting();
+        }
+        return;
+      }
+
+      workspaceActionsRef.current?.openFile(item.path);
+    },
+    [handleOpenExisting, handleOpenFolder],
+  );
+
+  useEffect(() => {
+    if (!commandPaletteOpen || mode.kind !== 'folder') {
+      return;
+    }
+
+    let cancelled = false;
+    setPaletteFilesLoading(true);
+
+    void window.electronAPI
+      .readFolderTree(mode.rootPath)
+      .then((tree) => {
+        if (cancelled) {
+          return;
+        }
+        setPaletteFilePaths(collectMarkdownFiles(tree));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPaletteFilesLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [commandPaletteOpen, mode]);
+
   useEffect(() => {
     if (mode.kind === 'welcome') {
       window.electronAPI.setSessionState(false, 'empty');
@@ -120,6 +205,11 @@ export function App() {
 
   useEffect(() => {
     return window.electronAPI.onMenuAction((action) => {
+      if (action === 'command-palette') {
+        setCommandPaletteOpen(true);
+        return;
+      }
+
       if (mode.kind !== 'welcome') {
         return;
       }
@@ -130,8 +220,10 @@ export function App() {
     });
   }, [mode.kind]);
 
+  let content: ReactNode;
+
   if (mode.kind === 'welcome') {
-    return (
+    content = (
       <WelcomeScreen
         onCreateNew={handleCreateNew}
         onOpenExisting={() => void handleOpenExisting()}
@@ -140,16 +232,35 @@ export function App() {
         onOpenRecentFolder={handleOpenRecentFolder}
       />
     );
-  }
-
-  if (mode.kind === 'folder') {
-    return <WorkspaceView rootPath={mode.rootPath} />;
+  } else if (mode.kind === 'folder') {
+    content = (
+      <WorkspaceView
+        rootPath={mode.rootPath}
+        onRegisterActions={(actions) => {
+          workspaceActionsRef.current = actions;
+        }}
+      />
+    );
+  } else {
+    content = (
+      <SingleDocumentView
+        key={mode.sessionKey}
+        initialDocument={mode.initialDocument}
+      />
+    );
   }
 
   return (
-    <SingleDocumentView
-      key={mode.sessionKey}
-      initialDocument={mode.initialDocument}
-    />
+    <>
+      {content}
+      {commandPaletteOpen && (
+        <CommandPalette
+          allItems={paletteItems}
+          isLoading={mode.kind === 'folder' && paletteFilesLoading}
+          onSelect={handlePaletteSelect}
+          onClose={() => setCommandPaletteOpen(false)}
+        />
+      )}
+    </>
   );
 }

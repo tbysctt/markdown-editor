@@ -67,7 +67,8 @@ export type MenuAction =
   | 'format-image'
   | 'format-code-snippet'
   | 'find'
-  | 'find-in-workspace';
+  | 'find-in-workspace'
+  | 'command-palette';
 
 export type DiscardChoice = 'save' | 'discard' | 'cancel';
 

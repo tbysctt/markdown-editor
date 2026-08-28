@@ -164,6 +164,7 @@ export function Sidebar({
             tree={tree}
             activeFilePath={activeFilePath}
             selectedPath={selectedPath}
+            revealPath={selectedPath ?? activeFilePath}
             onSelect={onSelect}
             onOpenFile={onOpenFile}
             onContextMenu={(event, node, isRoot) => {
