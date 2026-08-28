@@ -1,4 +1,5 @@
 import type { Editor } from '@tiptap/react';
+import { getFileName } from '../utils/markdown';
 
 export interface EditorTab {
   id: string;
@@ -24,6 +25,13 @@ export interface TabEditorHandle {
   saveDocumentAs: () => Promise<boolean>;
 }
 
+export function getTabLabel(filePath: string): string {
+  if (isUntitledPath(filePath)) {
+    return 'Untitled';
+  }
+  return getFileName(filePath);
+}
+
 export function isMarkdownFile(filePath: string): boolean {
   const lower = filePath.toLowerCase();
   return lower.endsWith('.md') || lower.endsWith('.markdown');
@@ -43,6 +51,26 @@ export function createEditorTab(
     filePath,
     dirty: false,
     isPreview: options.preview ?? false,
+    initialContent,
+    contentEpoch: 0,
+  };
+}
+
+export function isUntitledPath(filePath: string): boolean {
+  return filePath.startsWith('untitled:');
+}
+
+export function createUntitledPath(tabId: string): string {
+  return `untitled:${tabId}`;
+}
+
+export function createUntitledTab(initialContent = ''): EditorTab {
+  const id = createTabId();
+  return {
+    id,
+    filePath: createUntitledPath(id),
+    dirty: false,
+    isPreview: false,
     initialContent,
     contentEpoch: 0,
   };

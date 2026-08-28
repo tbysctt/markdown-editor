@@ -3,10 +3,8 @@ import { FileTree } from './FileTree';
 import { FilePlusIcon, FolderPlusIcon } from './icons/ExplorerIcons';
 import type { FileTreeNode } from '../types/electron';
 import type { OpenTabOptions } from '../types/workspace';
-import {
-  FileTreeContextMenu,
-  type ContextMenuItem,
-} from './FileTreeContextMenu';
+import { ContextMenu, type ContextMenuItem } from './ContextMenu';
+import { getFileName } from '../utils/markdown';
 
 interface SidebarProps {
   rootPath: string;
@@ -18,6 +16,7 @@ interface SidebarProps {
   onNewFile: (parentDir?: string) => void;
   onNewFolder: (parentDir?: string) => void;
   onDelete: (targetPath: string, isDirectory: boolean) => void;
+  onRename: (targetPath: string, isDirectory: boolean) => void;
 }
 
 interface ContextMenuState {
@@ -37,6 +36,7 @@ export function Sidebar({
   onNewFile,
   onNewFolder,
   onDelete,
+  onRename,
 }: SidebarProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
@@ -64,6 +64,11 @@ export function Sidebar({
 
     if (!isRoot) {
       items.push({
+        id: 'rename',
+        label: 'Rename',
+        onClick: () => onRename(node.path, isDirectory),
+      });
+      items.push({
         id: 'delete',
         label: 'Delete',
         danger: true,
@@ -72,7 +77,7 @@ export function Sidebar({
     }
 
     return items;
-  }, [contextMenu, onDelete, onNewFile, onNewFolder]);
+  }, [contextMenu, onDelete, onNewFile, onNewFolder, onRename]);
 
   return (
     <aside className="sidebar">
@@ -121,7 +126,7 @@ export function Sidebar({
         />
       </div>
       {contextMenu && (
-        <FileTreeContextMenu
+        <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
           items={contextMenuItems}
@@ -130,4 +135,15 @@ export function Sidebar({
       )}
     </aside>
   );
+}
+
+export function getExplorerRenameDefaultValue(
+  targetPath: string,
+  isDirectory: boolean,
+): string {
+  const name = getFileName(targetPath);
+  if (isDirectory) {
+    return name;
+  }
+  return name;
 }

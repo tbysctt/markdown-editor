@@ -1,18 +1,33 @@
 import { useEffect, useState } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
-import { EditorView } from './components/EditorView';
+import { SingleDocumentView } from './components/SingleDocumentView';
 import { WorkspaceView } from './components/WorkspaceView';
 
 type AppMode =
   | { kind: 'welcome' }
-  | { kind: 'single'; content: string; path: string | null }
+  | {
+      kind: 'single';
+      sessionKey: number;
+      initialDocument?: { path: string; content: string } | null;
+    }
   | { kind: 'folder'; rootPath: string };
 
 export function App() {
   const [mode, setMode] = useState<AppMode>({ kind: 'welcome' });
+  const [singleSessionKey, setSingleSessionKey] = useState(0);
 
-  const openSingleEditor = (content: string, path: string | null) => {
-    setMode({ kind: 'single', content, path });
+  const enterSingleMode = (
+    initialDocument?: { path: string; content: string } | null,
+  ) => {
+    setSingleSessionKey((current) => {
+      const nextKey = current + 1;
+      setMode({
+        kind: 'single',
+        sessionKey: nextKey,
+        initialDocument: initialDocument ?? null,
+      });
+      return nextKey;
+    });
   };
 
   const openFolder = (rootPath: string) => {
@@ -20,13 +35,13 @@ export function App() {
   };
 
   const handleCreateNew = () => {
-    openSingleEditor('', null);
+    enterSingleMode(null);
   };
 
   const handleOpenExisting = async () => {
     const result = await window.electronAPI.openFile();
     if (result) {
-      openSingleEditor(result.content, result.path);
+      enterSingleMode(result);
     }
   };
 
@@ -49,14 +64,21 @@ export function App() {
 
   useEffect(() => {
     const unsubscribeInitial = window.electronAPI.onInitialDocument((document) => {
-      openSingleEditor(document.content, document.path);
+      enterSingleMode(document);
+    });
+
+    const unsubscribeInitialUntitled = window.electronAPI.onInitialUntitled(() => {
+      enterSingleMode(null);
     });
 
     const unsubscribeOpen = window.electronAPI.onOpenDocument((document) => {
       if (mode.kind === 'folder') {
         return;
       }
-      openSingleEditor(document.content, document.path);
+      if (mode.kind === 'single') {
+        return;
+      }
+      enterSingleMode(document);
     });
 
     const unsubscribeInitialFolder = window.electronAPI.onInitialFolder((folder) => {
@@ -69,6 +91,7 @@ export function App() {
 
     return () => {
       unsubscribeInitial();
+      unsubscribeInitialUntitled();
       unsubscribeOpen();
       unsubscribeInitialFolder();
       unsubscribeOpenFolder();
@@ -81,8 +104,8 @@ export function App() {
         return;
       }
 
-      if (action === 'new') {
-        handleCreateNew();
+      if (action === 'close') {
+        window.electronAPI.requestClose();
       }
     });
   }, [mode.kind]);
@@ -102,11 +125,9 @@ export function App() {
   }
 
   return (
-    <EditorView
-      key={`${mode.path ?? 'new'}-${mode.content.length}`}
-      initialContent={mode.content}
-      initialPath={mode.path}
-      onNavigateWelcome={() => setMode({ kind: 'welcome' })}
+    <SingleDocumentView
+      key={mode.sessionKey}
+      initialDocument={mode.initialDocument}
     />
   );
 }

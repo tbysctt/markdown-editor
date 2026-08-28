@@ -56,6 +56,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }): Promise<DeleteConfirmChoice> =>
     ipcRenderer.invoke(IPC.FOLDER_CONFIRM_DELETE, payload),
 
+  renameFolderEntry: (payload: {
+    rootPath: string;
+    oldPath: string;
+    newName: string;
+  }): Promise<{ path: string }> =>
+    ipcRenderer.invoke(IPC.FOLDER_RENAME, payload),
+
+  renameFile: (payload: {
+    oldPath: string;
+    newName: string;
+  }): Promise<{ path: string }> =>
+    ipcRenderer.invoke(IPC.FILE_RENAME, payload),
+
   saveFile: (path: string, content: string): Promise<void> =>
     ipcRenderer.invoke(IPC.FILE_SAVE, path, content),
 
@@ -113,6 +126,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send(IPC.DOC_ABORT_CLOSE);
   },
 
+  requestClose: (): void => {
+    ipcRenderer.send(IPC.WINDOW_REQUEST_CLOSE);
+  },
+
   onMenuAction: (callback: (action: MenuAction) => void) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
@@ -149,6 +166,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC.WINDOW_INITIAL_DOCUMENT, listener);
     return () => {
       ipcRenderer.removeListener(IPC.WINDOW_INITIAL_DOCUMENT, listener);
+    };
+  },
+
+  onInitialUntitled: (callback: () => void) => {
+    const listener = () => {
+      callback();
+    };
+    ipcRenderer.on(IPC.WINDOW_INITIAL_UNTITLED, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.WINDOW_INITIAL_UNTITLED, listener);
     };
   },
 

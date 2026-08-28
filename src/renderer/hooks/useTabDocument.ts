@@ -4,6 +4,7 @@ import {
   prepareMarkdownForSave,
   type QueuedImage,
 } from '../utils/markdown';
+import { isUntitledPath } from '../types/workspace';
 
 interface UseTabDocumentOptions {
   editor: Editor | null;
@@ -36,36 +37,6 @@ export function useTabDocument({
     }
     return prepareMarkdownForSave(editor.getMarkdown(), queuedImages);
   }, [editor, queuedImages]);
-
-  const saveDocument = useCallback(async (): Promise<boolean> => {
-    if (!editor) {
-      return false;
-    }
-
-    let content = getMarkdownContent();
-
-    if (queuedImages.length > 0) {
-      const copied = await window.electronAPI.copyQueuedImages(
-        filePath,
-        queuedImages.map((image) => ({
-          tempPath: image.tempPath,
-          relativePath: image.relativePath,
-        })),
-      );
-
-      const updatedQueued = queuedImages.map((image, index) => ({
-        ...image,
-        relativePath: copied[index]?.relativePath ?? image.relativePath,
-      }));
-
-      content = prepareMarkdownForSave(editor.getMarkdown(), updatedQueued);
-      setQueuedImages([]);
-    }
-
-    await window.electronAPI.saveFile(filePath, content);
-    markClean();
-    return true;
-  }, [editor, filePath, getMarkdownContent, markClean, queuedImages]);
 
   const saveDocumentAs = useCallback(async (): Promise<{
     success: boolean;
@@ -107,6 +78,41 @@ export function useTabDocument({
     markClean();
     return { success: true, path: targetPath };
   }, [editor, getMarkdownContent, markClean, queuedImages]);
+
+  const saveDocument = useCallback(async (): Promise<boolean> => {
+    if (!editor) {
+      return false;
+    }
+
+    if (isUntitledPath(filePath)) {
+      const result = await saveDocumentAs();
+      return result.success;
+    }
+
+    let content = getMarkdownContent();
+
+    if (queuedImages.length > 0) {
+      const copied = await window.electronAPI.copyQueuedImages(
+        filePath,
+        queuedImages.map((image) => ({
+          tempPath: image.tempPath,
+          relativePath: image.relativePath,
+        })),
+      );
+
+      const updatedQueued = queuedImages.map((image, index) => ({
+        ...image,
+        relativePath: copied[index]?.relativePath ?? image.relativePath,
+      }));
+
+      content = prepareMarkdownForSave(editor.getMarkdown(), updatedQueued);
+      setQueuedImages([]);
+    }
+
+    await window.electronAPI.saveFile(filePath, content);
+    markClean();
+    return true;
+  }, [editor, filePath, getMarkdownContent, markClean, queuedImages, saveDocumentAs]);
 
   const addQueuedImage = useCallback(
     (image: QueuedImage) => {

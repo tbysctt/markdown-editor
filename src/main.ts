@@ -17,11 +17,14 @@ import {
   startFolderWatch,
   stopFolderWatch,
   suppressPathForWatch,
+  broadcastFolderRenamed,
 } from './main/folderWatcher';
 import {
   createFolder,
   createMarkdownFile,
   deleteEntry,
+  renameEntry,
+  renamePath,
 } from './main/folderOperations';
 import packageJson from '../package.json';
 
@@ -50,6 +53,7 @@ interface InitialFolder {
 interface CreateWindowOptions {
   initialDocument?: InitialDocument;
   initialFolder?: InitialFolder;
+  startUntitled?: boolean;
 }
 
 const windows = new Map<number, WindowState>();
@@ -143,9 +147,12 @@ const showDiscardDialog = async (
   return 'save';
 };
 
+const handleFileNew = (): void => {
+  createWindow({ startUntitled: true });
+};
+
 const handleFileOpen = async (): Promise<void> => {
   const focusedWindow = getFocusedWindow();
-  const state = getWindowState(focusedWindow);
 
   const { canceled, filePaths } = await dialog.showOpenDialog(focusedWindow, {
     properties: ['openFile'],
@@ -159,11 +166,6 @@ const handleFileOpen = async (): Promise<void> => {
   const filePath = filePaths[0];
   const content = await fs.readFile(filePath, 'utf-8');
   const document: InitialDocument = { path: filePath, content };
-
-  if (state?.hasDocument && state.mode !== 'folder') {
-    createWindow({ initialDocument: document });
-    return;
-  }
 
   focusedWindow.webContents.send(IPC.WINDOW_OPEN_DOCUMENT, document);
 };
@@ -197,7 +199,7 @@ const buildMenu = (): Menu => {
     {
       label: 'New',
       accelerator: 'CmdOrCtrl+N',
-      click: () => sendMenuAction('new'),
+      click: () => handleFileNew(),
     },
     {
       label: 'Open…',
@@ -442,7 +444,7 @@ const registerIpcHandlers = (): void => {
   ipcMain.handle(
     IPC.FOLDER_CREATE_FILE,
     async (
-      _event,
+      event,
       payload: { rootPath: string; parentDir: string; name: string },
     ) => {
       const filePath = await createMarkdownFile(
@@ -450,7 +452,7 @@ const registerIpcHandlers = (): void => {
         payload.parentDir,
         payload.name,
       );
-      suppressPathForWatch(filePath);
+      suppressPathForWatch(event.sender.id, filePath);
       return { path: filePath };
     },
   );
@@ -458,7 +460,7 @@ const registerIpcHandlers = (): void => {
   ipcMain.handle(
     IPC.FOLDER_CREATE_FOLDER,
     async (
-      _event,
+      event,
       payload: { rootPath: string; parentDir: string; name: string },
     ) => {
       const folderPath = await createFolder(
@@ -466,7 +468,7 @@ const registerIpcHandlers = (): void => {
         payload.parentDir,
         payload.name,
       );
-      suppressPathForWatch(folderPath);
+      suppressPathForWatch(event.sender.id, folderPath);
       return { path: folderPath };
     },
   );
@@ -474,10 +476,10 @@ const registerIpcHandlers = (): void => {
   ipcMain.handle(
     IPC.FOLDER_DELETE,
     async (
-      _event,
+      event,
       payload: { rootPath: string; targetPath: string },
     ) => {
-      suppressPathForWatch(payload.targetPath);
+      suppressPathForWatch(event.sender.id, payload.targetPath);
       await deleteEntry(payload.rootPath, payload.targetPath);
       return { success: true };
     },
@@ -503,6 +505,39 @@ const registerIpcHandlers = (): void => {
     },
   );
 
+  ipcMain.handle(
+    IPC.FOLDER_RENAME,
+    async (
+      event,
+      payload: { rootPath: string; oldPath: string; newName: string },
+    ) => {
+      const newPath = await renameEntry(
+        payload.rootPath,
+        payload.oldPath,
+        payload.newName,
+      );
+      suppressPathForWatch(event.sender.id, payload.oldPath);
+      suppressPathForWatch(event.sender.id, newPath);
+      broadcastFolderRenamed(
+        payload.rootPath,
+        payload.oldPath,
+        newPath,
+        event.sender.id,
+      );
+      return { path: newPath };
+    },
+  );
+
+  ipcMain.handle(
+    IPC.FILE_RENAME,
+    async (event, payload: { oldPath: string; newName: string }) => {
+      const newPath = await renamePath(payload.oldPath, payload.newName);
+      suppressPathForWatch(event.sender.id, payload.oldPath);
+      suppressPathForWatch(event.sender.id, newPath);
+      return { path: newPath };
+    },
+  );
+
   ipcMain.handle(IPC.FILE_OPEN, async (event) => {
     const parentWindow = getWindowFromSender(event.sender) ?? getFocusedWindow();
     const { canceled, filePaths } = await dialog.showOpenDialog(parentWindow, {
@@ -521,8 +556,8 @@ const registerIpcHandlers = (): void => {
 
   ipcMain.handle(
     IPC.FILE_SAVE,
-    async (_event, filePath: string, content: string) => {
-      suppressPathForWatch(filePath);
+    async (event, filePath: string, content: string) => {
+      suppressPathForWatch(event.sender.id, filePath);
       await fs.writeFile(filePath, content, 'utf-8');
     },
   );
@@ -538,7 +573,7 @@ const registerIpcHandlers = (): void => {
       return null;
     }
 
-    suppressPathForWatch(filePath);
+    suppressPathForWatch(event.sender.id, filePath);
     await fs.writeFile(filePath, content, 'utf-8');
     return { path: filePath };
   });
@@ -731,6 +766,11 @@ const registerIpcHandlers = (): void => {
     pendingCloseResolves.get(window.id)?.(false);
     pendingCloseResolves.delete(window.id);
   });
+
+  ipcMain.on(IPC.WINDOW_REQUEST_CLOSE, (event) => {
+    const window = getWindowFromSender(event.sender);
+    window?.close();
+  });
 };
 
 const handleWindowClose = async (window: BrowserWindow): Promise<boolean> => {
@@ -756,7 +796,7 @@ const handleWindowClose = async (window: BrowserWindow): Promise<boolean> => {
 };
 
 const createWindow = (options: CreateWindowOptions = {}): BrowserWindow => {
-  const { initialDocument, initialFolder } = options;
+  const { initialDocument, initialFolder, startUntitled } = options;
   const window = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -774,8 +814,8 @@ const createWindow = (options: CreateWindowOptions = {}): BrowserWindow => {
   windows.set(window.id, {
     window,
     isDirty: false,
-    hasDocument: Boolean(initialDocument || initialFolder),
-    mode: initialFolder ? 'folder' : initialDocument ? 'single' : 'empty',
+    hasDocument: Boolean(initialDocument || initialFolder || startUntitled),
+    mode: initialFolder ? 'folder' : initialDocument || startUntitled ? 'single' : 'empty',
   });
 
   const sendInitialPayload = (): void => {
@@ -783,6 +823,8 @@ const createWindow = (options: CreateWindowOptions = {}): BrowserWindow => {
       window.webContents.send(IPC.WINDOW_INITIAL_DOCUMENT, initialDocument);
     } else if (initialFolder) {
       window.webContents.send(IPC.WINDOW_INITIAL_FOLDER, initialFolder);
+    } else if (startUntitled) {
+      window.webContents.send(IPC.WINDOW_INITIAL_UNTITLED);
     }
   };
 
@@ -798,21 +840,23 @@ const createWindow = (options: CreateWindowOptions = {}): BrowserWindow => {
   }
 
   window.on('close', async (event) => {
+    const cleanupWindow = (): void => {
+      stopFolderWatch(window.webContents);
+      windows.delete(window.id);
+      pendingCloseResolves.delete(window.id);
+    };
+
     if (isQuitting) {
+      cleanupWindow();
       return;
     }
 
     event.preventDefault();
     const canClose = await handleWindowClose(window);
     if (canClose) {
+      cleanupWindow();
       window.destroy();
     }
-  });
-
-  window.on('closed', () => {
-    stopFolderWatch(window.webContents);
-    windows.delete(window.id);
-    pendingCloseResolves.delete(window.id);
   });
 
   return window;

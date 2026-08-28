@@ -112,18 +112,6 @@ button {
   border-bottom: 1px solid #e5e7eb;
 }
 
-.document-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 1rem 0;
-}
-
-.document-name {
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
 /* Toolbar */
 
 .toolbar {
@@ -892,4 +880,26 @@ button {
 
 .context-menu-item--danger:hover {
   background: #fef2f2;
+}
+
+.context-menu-item:disabled {
+  color: #9ca3af;
+  cursor: default;
+}
+
+.context-menu-item:disabled:hover {
+  background: transparent;
+}
+
+.single-document-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.single-document-view .editor-view {
+  flex: 1;
+  min-height: 0;
 }

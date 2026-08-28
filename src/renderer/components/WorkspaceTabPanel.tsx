@@ -11,6 +11,7 @@ import { useTabDocument } from '../hooks/useTabDocument';
 import { getPrintableHtml } from '../utils/print';
 import { getFileName, prepareMarkdownForEditor } from '../utils/markdown';
 import type { EditorTab, TabEditorHandle } from '../types/workspace';
+import { isUntitledPath } from '../types/workspace';
 
 export interface WorkspaceTabPanelHandle {
   runMenuAction: (action: MenuAction) => boolean;
@@ -69,6 +70,7 @@ export function WorkspaceTabPanel({
     getMarkdownContent,
     saveDocument,
     saveDocumentAs,
+    addQueuedImage,
     setSuppressDirty,
   } = useTabDocument({
     editor,
@@ -84,10 +86,9 @@ export function WorkspaceTabPanel({
     }
 
     setSuppressDirty(true);
-    const prepared = await prepareMarkdownForEditor(
-      tab.initialContent,
-      tab.filePath,
-    );
+    const prepared = isUntitledPath(tab.filePath)
+      ? tab.initialContent
+      : await prepareMarkdownForEditor(tab.initialContent, tab.filePath);
     editor.commands.setContent(prepared, { contentType: 'markdown' });
     loadedEpochRef.current = tab.contentEpoch;
     setSuppressDirty(false);
@@ -116,7 +117,16 @@ export function WorkspaceTabPanel({
         return dirtyRef.current;
       },
       getMarkdownContent,
-      saveDocument,
+      saveDocument: async () => {
+        if (isUntitledPath(tab.filePath)) {
+          const result = await saveDocumentAs();
+          if (result.success && result.path) {
+            onSaveAs(tab.id, result.path);
+          }
+          return result.success;
+        }
+        return saveDocument();
+      },
       saveDocumentAs: async () => {
         const result = await saveDocumentAs();
         if (result.success && result.path) {
@@ -153,6 +163,13 @@ export function WorkspaceTabPanel({
       return;
     }
 
+    if (isUntitledPath(tab.filePath)) {
+      const staged = await window.electronAPI.stageImage(sourcePath);
+      editor.chain().focus().setImage({ src: staged.fileUrl }).run();
+      addQueuedImage(staged);
+      return;
+    }
+
     const { relativePath } = await window.electronAPI.copyImageForDocument(
       sourcePath,
       tab.filePath,
@@ -163,7 +180,7 @@ export function WorkspaceTabPanel({
     );
     editor.chain().focus().setImage({ src: fileUrl }).run();
     markDirty();
-  }, [editor, markDirty, tab.filePath]);
+  }, [addQueuedImage, editor, markDirty, tab.filePath]);
 
   const handleInsertCode = useCallback(() => {
     editor?.chain().focus().setCodeBlock({ language: null }).run();

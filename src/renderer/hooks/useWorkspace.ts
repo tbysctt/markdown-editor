@@ -10,6 +10,7 @@ import {
 import { confirmDiscardIfDirty } from '../utils/documentConfirm';
 import { buildWorkspaceTitle, getFileName } from '../utils/markdown';
 import { getParentDirForCreate } from '../utils/explorer';
+import { remapPath } from '../utils/paths';
 
 interface UseWorkspaceOptions {
   rootPath: string;
@@ -117,31 +118,38 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
       ({ oldPath, newPath }) => {
         setTabs((current) =>
           current.map((tab) => {
-            if (tab.filePath !== oldPath) {
+            const remapped = remapPath(tab.filePath, oldPath, newPath);
+            if (remapped === tab.filePath) {
               return tab;
             }
 
             if (tab.dirty) {
-              return { ...tab, filePath: newPath };
+              return { ...tab, filePath: remapped };
             }
 
-            void window.electronAPI.readFolderFile(newPath).then((file) => {
-              setTabs((inner) =>
-                inner.map((innerTab) =>
-                  innerTab.id === tab.id
-                    ? {
-                        ...innerTab,
-                        filePath: newPath,
-                        initialContent: file.content,
-                        contentEpoch: innerTab.contentEpoch + 1,
-                      }
-                    : innerTab,
-                ),
-              );
-            });
+            if (tab.filePath === oldPath) {
+              void window.electronAPI.readFolderFile(remapped).then((file) => {
+                setTabs((inner) =>
+                  inner.map((innerTab) =>
+                    innerTab.id === tab.id
+                      ? {
+                          ...innerTab,
+                          filePath: remapped,
+                          initialContent: file.content,
+                          contentEpoch: innerTab.contentEpoch + 1,
+                        }
+                      : innerTab,
+                  ),
+                );
+              });
+            }
 
-            return { ...tab, filePath: newPath };
+            return { ...tab, filePath: remapped };
           }),
+        );
+
+        setSelectedPath((current) =>
+          current ? remapPath(current, oldPath, newPath) : current,
         );
 
         void refreshTree();
@@ -298,18 +306,20 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
       const filtered = tabsRef.current.filter((tab) => tab.id !== tabId);
       setTabs(filtered);
 
+      if (filtered.length === 0) {
+        setActiveTabId(null);
+        syncWorkspaceWindowTitle(rootPath, filtered, null);
+        window.electronAPI.requestClose();
+        return true;
+      }
+
       if (isActive) {
-        if (filtered.length > 0) {
-          const closedIndex = tabsRef.current.findIndex(
-            (tab) => tab.id === tabId,
-          );
-          const nextTab = filtered[Math.min(closedIndex, filtered.length - 1)];
-          setActiveTabId(nextTab.id);
-          syncWorkspaceWindowTitle(rootPath, filtered, nextTab.id);
-        } else {
-          setActiveTabId(null);
-          syncWorkspaceWindowTitle(rootPath, filtered, null);
-        }
+        const closedIndex = tabsRef.current.findIndex(
+          (tab) => tab.id === tabId,
+        );
+        const nextTab = filtered[Math.min(closedIndex, filtered.length - 1)];
+        setActiveTabId(nextTab.id);
+        syncWorkspaceWindowTitle(rootPath, filtered, nextTab.id);
       } else {
         syncWorkspaceWindowTitle(rootPath, filtered, activeTabIdRef.current);
       }
@@ -330,6 +340,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
 
   const closeActiveTab = useCallback(async () => {
     if (!activeTabIdRef.current) {
+      window.electronAPI.requestClose();
       return;
     }
     await closeTab(activeTabIdRef.current);
@@ -476,6 +487,48 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
     [refreshTree, rootPath, selectedPath],
   );
 
+  const renameExplorerEntry = useCallback(
+    async (oldPath: string, newName: string): Promise<boolean> => {
+      try {
+        const result = await window.electronAPI.renameFolderEntry({
+          rootPath,
+          oldPath,
+          newName,
+        });
+
+        setTabs((current) => {
+          const next = current.map((tab) => ({
+            ...tab,
+            filePath: remapPath(tab.filePath, oldPath, result.path),
+          }));
+          syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
+          return next;
+        });
+
+        setSelectedPath((current) =>
+          current ? remapPath(current, oldPath, result.path) : current,
+        );
+
+        await refreshTree();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [refreshTree, rootPath],
+  );
+
+  const renameTab = useCallback(
+    async (tabId: string, newName: string): Promise<boolean> => {
+      const tab = tabsRef.current.find((t) => t.id === tabId);
+      if (!tab) {
+        return false;
+      }
+      return renameExplorerEntry(tab.filePath, newName);
+    },
+    [renameExplorerEntry],
+  );
+
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
   const activeFilePath = activeTab?.filePath ?? null;
 
@@ -544,5 +597,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
     setTabDirty,
     updateTabFilePath,
     getActiveHandle,
+    renameExplorerEntry,
+    renameTab,
   };
 }

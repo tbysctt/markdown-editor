@@ -115,3 +115,34 @@ export async function deleteEntry(
 
   await fs.rm(targetPath, { recursive: true, force: true });
 }
+
+export async function renamePath(
+  oldPath: string,
+  newName: string,
+): Promise<string> {
+  const parentDir = path.dirname(oldPath);
+  const validName = validateEntryName(newName);
+  const newPath = path.join(parentDir, validName);
+
+  if (path.resolve(oldPath) === path.resolve(newPath)) {
+    return oldPath;
+  }
+
+  if (await pathExists(newPath)) {
+    throw new Error('A file or folder with that name already exists');
+  }
+
+  await fs.rename(oldPath, newPath);
+  return newPath;
+}
+
+export async function renameEntry(
+  rootPath: string,
+  oldPath: string,
+  newName: string,
+): Promise<string> {
+  assertPathInsideRoot(rootPath, oldPath);
+  const newPath = await renamePath(oldPath, newName);
+  assertPathInsideRoot(rootPath, newPath);
+  return newPath;
+}

@@ -15,9 +15,11 @@ export const IPC = {
   DOC_READY_TO_CLOSE: 'doc:ready-to-close',
   DOC_ABORT_CLOSE: 'doc:abort-close',
   WINDOW_INITIAL_DOCUMENT: 'window:initial-document',
+  WINDOW_INITIAL_UNTITLED: 'window:initial-untitled',
   WINDOW_OPEN_DOCUMENT: 'window:open-document',
   WINDOW_INITIAL_FOLDER: 'window:initial-folder',
   WINDOW_OPEN_FOLDER: 'window:open-folder',
+  WINDOW_REQUEST_CLOSE: 'window:request-close',
   FOLDER_OPEN: 'folder:open',
   FOLDER_READ_TREE: 'folder:read-tree',
   FOLDER_READ_FILE: 'folder:read-file',
@@ -29,13 +31,14 @@ export const IPC = {
   FOLDER_CREATE_FOLDER: 'folder:create-folder',
   FOLDER_DELETE: 'folder:delete',
   FOLDER_CONFIRM_DELETE: 'folder:confirm-delete',
+  FOLDER_RENAME: 'folder:rename',
+  FILE_RENAME: 'file:rename',
   MENU_ACTION: 'menu:action',
   APP_BEFORE_CLOSE: 'app:before-close',
   APP_CLOSE_RESPONSE: 'app:close-response',
 } as const;
 
 export type MenuAction =
-  | 'new'
   | 'open'
   | 'close'
   | 'save'

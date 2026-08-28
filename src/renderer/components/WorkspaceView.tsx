@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MenuAction } from '../../ipc/channels';
-import { Sidebar } from './Sidebar';
+import { Sidebar, getExplorerRenameDefaultValue } from './Sidebar';
 import { TabBar } from './TabBar';
 import { NamePromptDialog } from './NamePromptDialog';
 import {
@@ -10,16 +10,31 @@ import {
 import { useWorkspace } from '../hooks/useWorkspace';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../editor/editorConfig';
 import type { OpenTabOptions } from '../types/workspace';
+import { getFileName } from '../utils/markdown';
 
 interface WorkspaceViewProps {
   rootPath: string;
 }
+
+type RenamePromptState =
+  | {
+      kind: 'explorer';
+      targetPath: string;
+      isDirectory: boolean;
+    }
+  | {
+      kind: 'tab';
+      tabId: string;
+    };
 
 export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
   const [namePrompt, setNamePrompt] = useState<{
     type: 'file' | 'folder';
     parentDir: string;
   } | null>(null);
+  const [renamePrompt, setRenamePrompt] = useState<RenamePromptState | null>(
+    null,
+  );
   const [zoom, setZoom] = useState(100);
   const panelHandlesRef = useRef(new Map<string, WorkspaceTabPanelHandle>());
 
@@ -42,6 +57,8 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
     unregisterTabEditor,
     setTabDirty,
     updateTabFilePath,
+    renameExplorerEntry,
+    renameTab,
   } = useWorkspace({ rootPath });
 
   const registerPanelHandle = useCallback(
@@ -85,6 +102,21 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
     [deleteExplorerPath],
   );
 
+  const handleExplorerRename = useCallback(
+    (targetPath: string, isDirectory: boolean) => {
+      setRenamePrompt({
+        kind: 'explorer',
+        targetPath,
+        isDirectory,
+      });
+    },
+    [],
+  );
+
+  const handleRenameTab = useCallback((tabId: string) => {
+    setRenamePrompt({ kind: 'tab', tabId });
+  }, []);
+
   const handleNamePromptConfirm = useCallback(
     (name: string) => {
       if (!namePrompt) {
@@ -99,6 +131,22 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
       setNamePrompt(null);
     },
     [createExplorerFile, createExplorerFolder, namePrompt],
+  );
+
+  const handleRenameConfirm = useCallback(
+    (name: string) => {
+      if (!renamePrompt) {
+        return;
+      }
+
+      if (renamePrompt.kind === 'explorer') {
+        void renameExplorerEntry(renamePrompt.targetPath, name);
+      } else {
+        void renameTab(renamePrompt.tabId, name);
+      }
+      setRenamePrompt(null);
+    },
+    [renameExplorerEntry, renamePrompt, renameTab],
   );
 
   const handleMenuAction = useCallback(
@@ -169,6 +217,18 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
     return unsubscribe;
   }, [openTab]);
 
+  const renameDefaultValue =
+    renamePrompt?.kind === 'explorer'
+      ? getExplorerRenameDefaultValue(
+          renamePrompt.targetPath,
+          renamePrompt.isDirectory,
+        )
+      : renamePrompt?.kind === 'tab'
+        ? getFileName(
+            tabs.find((tab) => tab.id === renamePrompt.tabId)?.filePath ?? '',
+          )
+        : '';
+
   return (
     <div className="workspace-view">
       <Sidebar
@@ -181,6 +241,7 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
         onNewFile={handleNewFile}
         onNewFolder={handleNewFolder}
         onDelete={handleDelete}
+        onRename={handleExplorerRename}
       />
       <div className="workspace-main">
         <TabBar
@@ -189,6 +250,7 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
           onSelectTab={switchTab}
           onCloseTab={(tabId) => void closeTab(tabId)}
           onPinTab={pinTab}
+          onRenameTab={handleRenameTab}
         />
         <div className="editor-view">
           {tabs.length === 0 ? (
@@ -225,6 +287,17 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
           confirmLabel="Create"
           onConfirm={handleNamePromptConfirm}
           onCancel={() => setNamePrompt(null)}
+        />
+      )}
+
+      {renamePrompt && (
+        <NamePromptDialog
+          title="Rename"
+          label="Name"
+          defaultValue={renameDefaultValue}
+          confirmLabel="Rename"
+          onConfirm={handleRenameConfirm}
+          onCancel={() => setRenamePrompt(null)}
         />
       )}
     </div>

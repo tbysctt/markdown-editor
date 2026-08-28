@@ -5,21 +5,22 @@ export interface ContextMenuItem {
   label: string;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }
 
-interface FileTreeContextMenuProps {
+interface ContextMenuProps {
   x: number;
   y: number;
   items: ContextMenuItem[];
   onClose: () => void;
 }
 
-export function FileTreeContextMenu({
+export function ContextMenu({
   x,
   y,
   items,
   onClose,
-}: FileTreeContextMenuProps) {
+}: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,7 +63,11 @@ export function FileTreeContextMenu({
           className={`context-menu-item${
             item.danger ? ' context-menu-item--danger' : ''
           }`}
+          disabled={item.disabled}
           onClick={() => {
+            if (item.disabled) {
+              return;
+            }
             item.onClick();
             onClose();
           }}

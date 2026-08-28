@@ -65,6 +65,15 @@ export interface ElectronAPI {
     name: string;
     isDirectory: boolean;
   }) => Promise<DeleteConfirmChoice>;
+  renameFolderEntry: (payload: {
+    rootPath: string;
+    oldPath: string;
+    newName: string;
+  }) => Promise<{ path: string }>;
+  renameFile: (payload: {
+    oldPath: string;
+    newName: string;
+  }) => Promise<{ path: string }>;
   saveFile: (path: string, content: string) => Promise<void>;
   saveAs: (content: string) => Promise<SaveFileResult | null>;
   openImage: () => Promise<string | null>;
@@ -90,9 +99,11 @@ export interface ElectronAPI {
   confirmDiscardChanges: () => Promise<DiscardChoice>;
   notifyReadyToClose: () => void;
   notifyAbortClose: () => void;
+  requestClose: () => void;
   onMenuAction: (callback: (action: MenuAction) => void) => () => void;
   onOpenDocument: (callback: (document: OpenFileResult) => void) => () => void;
   onInitialDocument: (callback: (document: OpenFileResult) => void) => () => void;
+  onInitialUntitled: (callback: () => void) => () => void;
   onOpenFolder: (callback: (folder: OpenFolderResult) => void) => () => void;
   onInitialFolder: (callback: (folder: OpenFolderResult) => void) => () => void;
   onFolderChanged: (callback: () => void) => () => void;
