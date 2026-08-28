@@ -86,6 +86,26 @@ export function CodeIcon({ className }: IconProps) {
   );
 }
 
+export function MathIcon({ className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 19h4l8-14h4" />
+      <path d="M12 19h8" />
+    </svg>
+  );
+}
+
 export function BulletListIcon({ className }: IconProps) {
   return (
     <svg

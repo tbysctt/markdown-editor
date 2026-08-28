@@ -252,6 +252,7 @@ export function WorkspaceView({ rootPath, onRegisterActions }: WorkspaceViewProp
         'format-table',
         'format-image',
         'format-code-snippet',
+        'format-math',
       ];
 
       if (editorActions.includes(action)) {

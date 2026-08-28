@@ -6,6 +6,7 @@ import {
   CodeIcon,
   ImageIcon,
   LinkIcon,
+  MathIcon,
   TableIcon,
 } from './icons/ToolbarIcons';
 
@@ -15,6 +16,7 @@ interface ToolbarProps {
   onInsertTable: () => void;
   onInsertImage: () => void;
   onInsertCode: () => void;
+  onInsertMath: () => void;
 }
 
 type TextType =
@@ -59,6 +61,7 @@ export function Toolbar({
   onInsertTable,
   onInsertImage,
   onInsertCode,
+  onInsertMath,
 }: ToolbarProps) {
   const [, setRevision] = useState(0);
 
@@ -161,6 +164,13 @@ export function Toolbar({
           active={editor.isActive('codeBlock')}
         >
           <CodeIcon />
+        </ToolbarIconButton>
+        <ToolbarIconButton
+          title="Insert equation"
+          onClick={onInsertMath}
+          active={editor.isActive('blockMath')}
+        >
+          <MathIcon />
         </ToolbarIconButton>
       </div>
     </div>

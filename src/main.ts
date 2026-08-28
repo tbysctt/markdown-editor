@@ -324,6 +324,10 @@ const buildMenu = (): Menu => {
       label: 'Insert Code Snippet',
       click: () => sendMenuAction('format-code-snippet'),
     },
+    {
+      label: 'Insert Equation',
+      click: () => sendMenuAction('format-math'),
+    },
   ];
 
   const viewSubmenu: Electron.MenuItemConstructorOptions[] = [

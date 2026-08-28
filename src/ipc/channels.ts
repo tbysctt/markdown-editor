@@ -66,6 +66,7 @@ export type MenuAction =
   | 'format-table'
   | 'format-image'
   | 'format-code-snippet'
+  | 'format-math'
   | 'find'
   | 'find-in-workspace'
   | 'command-palette';

@@ -9,6 +9,7 @@ import { CharacterCount } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
 import type { Extensions } from '@tiptap/react';
 import { CodeBlockExtension } from '../extensions/codeBlockExtension';
+import { MathExtension } from '../extensions/mathExtension';
 
 export function createEditorExtensions(): Extensions {
   return [
@@ -17,6 +18,7 @@ export function createEditorExtensions(): Extensions {
       codeBlock: false,
     }),
     CodeBlockExtension,
+    MathExtension,
     Link.configure({
       openOnClick: false,
       autolink: true,

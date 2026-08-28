@@ -4,9 +4,14 @@ import type { MenuAction } from '../../ipc/channels';
 import { Toolbar } from './Toolbar';
 import { FindBar } from './FindBar';
 import { LinkDialog } from './LinkDialog';
+import { MathDialog } from './MathDialog';
 import { TableInsertDialog } from './TableInsertDialog';
 import { StatusBar } from './StatusBar';
 import { createEditorExtensions } from '../editor/editorExtensions';
+import {
+  DEFAULT_MATH_LATEX,
+  setBlockMathClickHandler,
+} from '../extensions/mathExtension';
 import { editorProps } from '../editor/editorConfig';
 import { useTabDocument } from '../hooks/useTabDocument';
 import { getPrintableHtml } from '../utils/print';
@@ -22,6 +27,7 @@ export interface WorkspaceTabPanelHandle {
   openTableDialog: () => void;
   insertImage: () => void;
   insertCode: () => void;
+  insertMath: () => void;
 }
 
 interface WorkspaceTabPanelProps {
@@ -46,6 +52,9 @@ export function WorkspaceTabPanel({
   onRegisterPanelHandle,
 }: WorkspaceTabPanelProps) {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [showMathDialog, setShowMathDialog] = useState(false);
+  const [mathEditPos, setMathEditPos] = useState<number | null>(null);
+  const [mathInitialLatex, setMathInitialLatex] = useState('');
   const [showTableDialog, setShowTableDialog] = useState(false);
   const [showFindBar, setShowFindBar] = useState(false);
   const [findBarQuery, setFindBarQuery] = useState<string | undefined>();
@@ -193,6 +202,46 @@ export function WorkspaceTabPanel({
     editor?.chain().focus().setCodeBlock({ language: null }).run();
   }, [editor]);
 
+  const handleInsertMath = useCallback(() => {
+    editor?.chain().focus().insertBlockMath({ latex: DEFAULT_MATH_LATEX }).run();
+  }, [editor]);
+
+  const applyMath = useCallback(
+    (latex: string) => {
+      if (!editor || mathEditPos === null) {
+        return;
+      }
+
+      editor
+        .chain()
+        .setNodeSelection(mathEditPos)
+        .updateBlockMath({ latex })
+        .focus()
+        .run();
+      setShowMathDialog(false);
+      setMathEditPos(null);
+      setMathInitialLatex('');
+    },
+    [editor, mathEditPos],
+  );
+
+  useEffect(() => {
+    if (!isActive) {
+      setBlockMathClickHandler(null);
+      return;
+    }
+
+    setBlockMathClickHandler((node, pos) => {
+      setMathInitialLatex(node.attrs.latex);
+      setMathEditPos(pos);
+      setShowMathDialog(true);
+    });
+
+    return () => {
+      setBlockMathClickHandler(null);
+    };
+  }, [isActive]);
+
   const applyLink = useCallback(
     (url: string) => {
       if (!editor) {
@@ -230,6 +279,7 @@ export function WorkspaceTabPanel({
     openTableDialog: () => setShowTableDialog(true),
     insertImage: () => void handleInsertImage(),
     insertCode: handleInsertCode,
+    insertMath: handleInsertMath,
   });
 
   panelHandleRef.current = {
@@ -250,6 +300,7 @@ export function WorkspaceTabPanel({
         onInsertTable: () => setShowTableDialog(true),
         onInsertImage: () => void handleInsertImage(),
         onInsertCode: handleInsertCode,
+        onInsertMath: handleInsertMath,
       });
     },
     openFindBar: (query?: string, matchIndex?: number) => {
@@ -267,6 +318,7 @@ export function WorkspaceTabPanel({
     openTableDialog: () => setShowTableDialog(true),
     insertImage: () => void handleInsertImage(),
     insertCode: handleInsertCode,
+    insertMath: handleInsertMath,
   };
 
   useEffect(() => {
@@ -275,6 +327,7 @@ export function WorkspaceTabPanel({
     editor,
     handleInsertCode,
     handleInsertImage,
+    handleInsertMath,
     onRegisterPanelHandle,
     tab.filePath,
   ]);
@@ -298,6 +351,7 @@ export function WorkspaceTabPanel({
           onInsertTable={() => setShowTableDialog(true)}
           onInsertImage={() => void handleInsertImage()}
           onInsertCode={handleInsertCode}
+          onInsertMath={handleInsertMath}
         />
         {showFindBar && isActive && (
           <FindBar
@@ -339,6 +393,18 @@ export function WorkspaceTabPanel({
           onCancel={() => setShowTableDialog(false)}
         />
       )}
+
+      {showMathDialog && isActive && (
+        <MathDialog
+          initialLatex={mathInitialLatex}
+          onConfirm={applyMath}
+          onCancel={() => {
+            setShowMathDialog(false);
+            setMathEditPos(null);
+            setMathInitialLatex('');
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -352,6 +418,7 @@ export function applyFormatMenuAction(
     onInsertTable: () => void;
     onInsertImage: () => void;
     onInsertCode: () => void;
+    onInsertMath: () => void;
   },
 ): boolean {
   switch (action) {
@@ -418,6 +485,9 @@ export function applyFormatMenuAction(
       return true;
     case 'format-code-snippet':
       handlers.onInsertCode();
+      return true;
+    case 'format-math':
+      handlers.onInsertMath();
       return true;
     default:
       return false;

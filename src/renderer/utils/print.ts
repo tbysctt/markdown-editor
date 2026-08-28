@@ -51,6 +51,11 @@ const PRINT_STYLES = `
     padding: 0.1rem 0.2rem;
     border-radius: 3px;
   }
+  .tiptap-mathematics-render[data-type="block-math"] {
+    display: block;
+    margin: 0 0 0.75rem;
+    text-align: center;
+  }
 `;
 
 export function getPrintableHtml(editor: Editor): string {
@@ -59,6 +64,7 @@ export function getPrintableHtml(editor: Editor): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" />
   <style>${PRINT_STYLES}</style>
 </head>
 <body>${content}</body>
