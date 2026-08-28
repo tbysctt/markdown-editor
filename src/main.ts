@@ -27,12 +27,11 @@ import {
   renamePath,
 } from './main/folderOperations';
 import packageJson from '../package.json';
+import { APP_NAME } from './shared/appMeta';
 
 if (started) {
   app.quit();
 }
-
-const APP_NAME = 'MDEditor';
 
 interface WindowState {
   window: BrowserWindow;
@@ -246,7 +245,7 @@ const buildMenu = (): Menu => {
   if (!isMac) {
     fileSubmenu.push(
       { type: 'separator' },
-      { role: 'quit', label: 'Quit MDEditor' },
+      { role: 'quit', label: `Quit ${APP_NAME}` },
     );
   }
 
@@ -604,7 +603,7 @@ const registerIpcHandlers = (): void => {
   );
 
   ipcMain.handle(IPC.FILE_STAGE_IMAGE, async (_event, sourcePath: string) => {
-    const tempDir = path.join(app.getPath('temp'), 'mdeditor-assets');
+    const tempDir = path.join(app.getPath('temp'), 'notebook-assets');
     await fs.mkdir(tempDir, { recursive: true });
     const fileName = uniqueAssetName(path.basename(sourcePath));
     const destPath = path.join(tempDir, fileName);

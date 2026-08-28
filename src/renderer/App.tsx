@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { SingleDocumentView } from './components/SingleDocumentView';
 import { WorkspaceView } from './components/WorkspaceView';
+import { addRecentPath } from './utils/recentPaths';
 
 type AppMode =
   | { kind: 'welcome' }
@@ -16,23 +17,29 @@ export function App() {
   const [mode, setMode] = useState<AppMode>({ kind: 'welcome' });
   const [singleSessionKey, setSingleSessionKey] = useState(0);
 
-  const enterSingleMode = (
-    initialDocument?: { path: string; content: string } | null,
-  ) => {
-    setSingleSessionKey((current) => {
-      const nextKey = current + 1;
-      setMode({
-        kind: 'single',
-        sessionKey: nextKey,
-        initialDocument: initialDocument ?? null,
-      });
-      return nextKey;
-    });
-  };
+  const enterSingleMode = useCallback(
+    (initialDocument?: { path: string; content: string } | null) => {
+      if (initialDocument?.path) {
+        addRecentPath(initialDocument.path, 'file');
+      }
 
-  const openFolder = (rootPath: string) => {
+      setSingleSessionKey((current) => {
+        const nextKey = current + 1;
+        setMode({
+          kind: 'single',
+          sessionKey: nextKey,
+          initialDocument: initialDocument ?? null,
+        });
+        return nextKey;
+      });
+    },
+    [],
+  );
+
+  const openFolder = useCallback((rootPath: string) => {
+    addRecentPath(rootPath, 'folder');
     setMode({ kind: 'folder', rootPath });
-  };
+  }, []);
 
   const handleCreateNew = () => {
     enterSingleMode(null);
@@ -50,6 +57,19 @@ export function App() {
     if (result) {
       openFolder(result.rootPath);
     }
+  };
+
+  const handleOpenRecentFile = async (path: string) => {
+    try {
+      const file = await window.electronAPI.readFolderFile(path);
+      enterSingleMode({ path: file.path, content: file.content });
+    } catch {
+      // File may have been moved or deleted.
+    }
+  };
+
+  const handleOpenRecentFolder = (path: string) => {
+    openFolder(path);
   };
 
   useEffect(() => {
@@ -96,7 +116,7 @@ export function App() {
       unsubscribeInitialFolder();
       unsubscribeOpenFolder();
     };
-  }, [mode.kind]);
+  }, [enterSingleMode, mode.kind, openFolder]);
 
   useEffect(() => {
     return window.electronAPI.onMenuAction((action) => {
@@ -116,6 +136,8 @@ export function App() {
         onCreateNew={handleCreateNew}
         onOpenExisting={() => void handleOpenExisting()}
         onOpenFolder={() => void handleOpenFolder()}
+        onOpenRecentFile={(path) => void handleOpenRecentFile(path)}
+        onOpenRecentFolder={handleOpenRecentFolder}
       />
     );
   }

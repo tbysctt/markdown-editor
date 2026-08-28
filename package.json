@@ -1,6 +1,6 @@
 {
-  "name": "markdown-editor",
-  "productName": "MDEditor",
+  "name": "notebook",
+  "productName": "Notebook",
   "version": "1.0.0",
   "description": "A WYSIWYG markdown word processor",
   "main": ".vite/build/main.js",

@@ -1,3 +1,5 @@
+import { APP_NAME } from '../../shared/appMeta';
+
 const IMAGE_MARKDOWN_REGEX = /!\[([^\]]*)\]\(([^)]+)\)/g;
 
 export interface QueuedImage {
@@ -80,7 +82,7 @@ export function buildWindowTitle(
 ): string {
   const name = getFileName(filePath);
   const prefix = dirty ? '*' : '';
-  return `${prefix}${name} — MDEditor`;
+  return `${prefix}${name} — ${APP_NAME}`;
 }
 
 export function buildWorkspaceTitle(
@@ -92,7 +94,7 @@ export function buildWorkspaceTitle(
   if (activeFilePath) {
     const fileName = getFileName(activeFilePath);
     const prefix = activeDirty ? '*' : '';
-    return `${prefix}${fileName} — ${folderName} — MDEditor`;
+    return `${prefix}${fileName} — ${folderName} — ${APP_NAME}`;
   }
-  return `${folderName} — MDEditor`;
+  return `${folderName} — ${APP_NAME}`;
 }
