@@ -11,13 +11,18 @@ import fs from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import started from 'electron-squirrel-startup';
 import { IPC } from './ipc/channels';
-import type { DiscardChoice, WindowMode } from './ipc/channels';
+import type { DiscardChoice, DeleteConfirmChoice, WindowMode } from './ipc/channels';
 import { readDirectoryTree } from './main/folderTree';
 import {
   startFolderWatch,
   stopFolderWatch,
   suppressPathForWatch,
 } from './main/folderWatcher';
+import {
+  createFolder,
+  createMarkdownFile,
+  deleteEntry,
+} from './main/folderOperations';
 import packageJson from '../package.json';
 
 if (started) {
@@ -433,6 +438,70 @@ const registerIpcHandlers = (): void => {
   ipcMain.handle(IPC.FOLDER_WATCH_STOP, (event) => {
     stopFolderWatch(event.sender);
   });
+
+  ipcMain.handle(
+    IPC.FOLDER_CREATE_FILE,
+    async (
+      _event,
+      payload: { rootPath: string; parentDir: string; name: string },
+    ) => {
+      const filePath = await createMarkdownFile(
+        payload.rootPath,
+        payload.parentDir,
+        payload.name,
+      );
+      suppressPathForWatch(filePath);
+      return { path: filePath };
+    },
+  );
+
+  ipcMain.handle(
+    IPC.FOLDER_CREATE_FOLDER,
+    async (
+      _event,
+      payload: { rootPath: string; parentDir: string; name: string },
+    ) => {
+      const folderPath = await createFolder(
+        payload.rootPath,
+        payload.parentDir,
+        payload.name,
+      );
+      suppressPathForWatch(folderPath);
+      return { path: folderPath };
+    },
+  );
+
+  ipcMain.handle(
+    IPC.FOLDER_DELETE,
+    async (
+      _event,
+      payload: { rootPath: string; targetPath: string },
+    ) => {
+      suppressPathForWatch(payload.targetPath);
+      await deleteEntry(payload.rootPath, payload.targetPath);
+      return { success: true };
+    },
+  );
+
+  ipcMain.handle(
+    IPC.FOLDER_CONFIRM_DELETE,
+    async (event, payload: { name: string; isDirectory: boolean }) => {
+      const parentWindow =
+        getWindowFromSender(event.sender) ?? getFocusedWindow();
+      const { response } = await dialog.showMessageBox(parentWindow, {
+        type: 'warning',
+        buttons: ['Cancel', 'Delete'],
+        defaultId: 0,
+        cancelId: 0,
+        message: `Delete "${payload.name}"?`,
+        detail: payload.isDirectory
+          ? 'This will permanently delete the folder and all its contents.'
+          : 'This cannot be undone.',
+      });
+
+      return (response === 1 ? 'confirm' : 'cancel') as DeleteConfirmChoice;
+    },
+  );
 
   ipcMain.handle(IPC.FILE_OPEN, async (event) => {
     const parentWindow = getWindowFromSender(event.sender) ?? getFocusedWindow();

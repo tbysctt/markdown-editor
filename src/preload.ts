@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from './ipc/channels';
-import type { DiscardChoice, MenuAction, WindowMode } from './ipc/channels';
+import type { DiscardChoice, DeleteConfirmChoice, MenuAction, WindowMode } from './ipc/channels';
 import type {
   CopyImageResult,
   FileTreeNode,
@@ -29,6 +29,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   stopFolderWatch: (): Promise<void> =>
     ipcRenderer.invoke(IPC.FOLDER_WATCH_STOP),
+
+  createFolderFile: (payload: {
+    rootPath: string;
+    parentDir: string;
+    name: string;
+  }): Promise<{ path: string }> =>
+    ipcRenderer.invoke(IPC.FOLDER_CREATE_FILE, payload),
+
+  createFolderEntry: (payload: {
+    rootPath: string;
+    parentDir: string;
+    name: string;
+  }): Promise<{ path: string }> =>
+    ipcRenderer.invoke(IPC.FOLDER_CREATE_FOLDER, payload),
+
+  deleteFolderEntry: (payload: {
+    rootPath: string;
+    targetPath: string;
+  }): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke(IPC.FOLDER_DELETE, payload),
+
+  confirmDeleteEntry: (payload: {
+    name: string;
+    isDirectory: boolean;
+  }): Promise<DeleteConfirmChoice> =>
+    ipcRenderer.invoke(IPC.FOLDER_CONFIRM_DELETE, payload),
 
   saveFile: (path: string, content: string): Promise<void> =>
     ipcRenderer.invoke(IPC.FILE_SAVE, path, content),

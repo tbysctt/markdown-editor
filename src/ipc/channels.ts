@@ -25,6 +25,10 @@ export const IPC = {
   FOLDER_WATCH_STOP: 'folder:watch-stop',
   FOLDER_CHANGED: 'folder:changed',
   FOLDER_RENAMED: 'folder:renamed',
+  FOLDER_CREATE_FILE: 'folder:create-file',
+  FOLDER_CREATE_FOLDER: 'folder:create-folder',
+  FOLDER_DELETE: 'folder:delete',
+  FOLDER_CONFIRM_DELETE: 'folder:confirm-delete',
   MENU_ACTION: 'menu:action',
   APP_BEFORE_CLOSE: 'app:before-close',
   APP_CLOSE_RESPONSE: 'app:close-response',
@@ -63,3 +67,5 @@ export type MenuAction =
 export type DiscardChoice = 'save' | 'discard' | 'cancel';
 
 export type WindowMode = 'empty' | 'single' | 'folder';
+
+export type DeleteConfirmChoice = 'confirm' | 'cancel';

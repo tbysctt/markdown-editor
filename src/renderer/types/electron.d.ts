@@ -1,4 +1,4 @@
-import type { DiscardChoice, MenuAction, WindowMode } from '../../ipc/channels';
+import type { DiscardChoice, DeleteConfirmChoice, MenuAction, WindowMode } from '../../ipc/channels';
 
 export interface OpenFileResult {
   path: string;
@@ -47,6 +47,24 @@ export interface ElectronAPI {
   readFolderFile: (filePath: string) => Promise<OpenFileResult>;
   startFolderWatch: (rootPath: string) => Promise<void>;
   stopFolderWatch: () => Promise<void>;
+  createFolderFile: (payload: {
+    rootPath: string;
+    parentDir: string;
+    name: string;
+  }) => Promise<{ path: string }>;
+  createFolderEntry: (payload: {
+    rootPath: string;
+    parentDir: string;
+    name: string;
+  }) => Promise<{ path: string }>;
+  deleteFolderEntry: (payload: {
+    rootPath: string;
+    targetPath: string;
+  }) => Promise<{ success: boolean }>;
+  confirmDeleteEntry: (payload: {
+    name: string;
+    isDirectory: boolean;
+  }) => Promise<DeleteConfirmChoice>;
   saveFile: (path: string, content: string) => Promise<void>;
   saveAs: (content: string) => Promise<SaveFileResult | null>;
   openImage: () => Promise<string | null>;

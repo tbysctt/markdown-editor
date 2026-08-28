@@ -15,6 +15,7 @@ import { TableInsertDialog } from './TableInsertDialog';
 import { StatusBar } from './StatusBar';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
+import { NamePromptDialog } from './NamePromptDialog';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { getPrintableHtml } from '../utils/print';
 import { getFileName } from '../utils/markdown';
@@ -32,6 +33,10 @@ const ZOOM_STEP = 10;
 export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showTableDialog, setShowTableDialog] = useState(false);
+  const [namePrompt, setNamePrompt] = useState<{
+    type: 'file' | 'folder';
+    parentDir: string;
+  } | null>(null);
   const [zoom, setZoom] = useState(100);
   const markDirtyRef = useRef<(() => void) | null>(null);
 
@@ -76,6 +81,12 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
     activeTabId,
     activeFilePath,
     tree,
+    selectedPath,
+    setSelectedPath,
+    getCreateParentDir,
+    createExplorerFile,
+    createExplorerFolder,
+    deleteExplorerPath,
     openTab,
     closeTab,
     switchTab,
@@ -90,6 +101,49 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
       void openTab(filePath, options);
     },
     [openTab],
+  );
+
+  const handleNewFile = useCallback(
+    (parentDir?: string) => {
+      setNamePrompt({
+        type: 'file',
+        parentDir: getCreateParentDir(parentDir),
+      });
+    },
+    [getCreateParentDir],
+  );
+
+  const handleNewFolder = useCallback(
+    (parentDir?: string) => {
+      setNamePrompt({
+        type: 'folder',
+        parentDir: getCreateParentDir(parentDir),
+      });
+    },
+    [getCreateParentDir],
+  );
+
+  const handleDelete = useCallback(
+    (targetPath: string, isDirectory: boolean) => {
+      void deleteExplorerPath(targetPath, isDirectory);
+    },
+    [deleteExplorerPath],
+  );
+
+  const handleNamePromptConfirm = useCallback(
+    (name: string) => {
+      if (!namePrompt) {
+        return;
+      }
+
+      if (namePrompt.type === 'file') {
+        void createExplorerFile(namePrompt.parentDir, name);
+      } else {
+        void createExplorerFolder(namePrompt.parentDir, name);
+      }
+      setNamePrompt(null);
+    },
+    [createExplorerFile, createExplorerFolder, namePrompt],
   );
 
   const handleInsertImage = useCallback(async () => {
@@ -291,7 +345,12 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
         rootPath={rootPath}
         tree={tree}
         activeFilePath={activeFilePath}
+        selectedPath={selectedPath}
+        onSelect={setSelectedPath}
         onOpenFile={handleOpenFile}
+        onNewFile={handleNewFile}
+        onNewFolder={handleNewFolder}
+        onDelete={handleDelete}
       />
       <div className="workspace-main">
         <TabBar
@@ -343,6 +402,19 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
         <TableInsertDialog
           onConfirm={handleInsertTable}
           onCancel={() => setShowTableDialog(false)}
+        />
+      )}
+
+      {namePrompt && (
+        <NamePromptDialog
+          title={namePrompt.type === 'file' ? 'New File' : 'New Folder'}
+          label={namePrompt.type === 'file' ? 'File name' : 'Folder name'}
+          defaultValue={
+            namePrompt.type === 'file' ? 'Untitled.md' : 'New Folder'
+          }
+          confirmLabel="Create"
+          onConfirm={handleNamePromptConfirm}
+          onCancel={() => setNamePrompt(null)}
         />
       )}
     </div>

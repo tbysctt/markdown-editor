@@ -10,10 +10,12 @@ import {
 import { confirmDiscardIfDirty } from '../utils/documentConfirm';
 import {
   buildWorkspaceTitle,
+  getFileName,
   prepareMarkdownForEditor,
   prepareMarkdownForSave,
   type QueuedImage,
 } from '../utils/markdown';
+import { getParentDirForCreate } from '../utils/explorer';
 
 interface UseWorkspaceOptions {
   editor: Editor | null;
@@ -41,15 +43,18 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tree, setTree] = useState<FileTreeNode | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [queuedImages, setQueuedImages] = useState<QueuedImage[]>([]);
   const suppressDirtyRef = useRef(false);
   const tabsRef = useRef(tabs);
   const activeTabIdRef = useRef(activeTabId);
   const queuedImagesRef = useRef(queuedImages);
+  const treeRef = useRef(tree);
 
   tabsRef.current = tabs;
   activeTabIdRef.current = activeTabId;
   queuedImagesRef.current = queuedImages;
+  treeRef.current = tree;
 
   const refreshTree = useCallback(async () => {
     const nextTree = await window.electronAPI.readFolderTree(rootPath);
@@ -521,6 +526,139 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
     [markActiveTabDirty],
   );
 
+  const getCreateParentDir = useCallback(
+    (overrideParentDir?: string) => {
+      if (overrideParentDir) {
+        return overrideParentDir;
+      }
+      return getParentDirForCreate(
+        rootPath,
+        selectedPath,
+        treeRef.current,
+      );
+    },
+    [rootPath, selectedPath],
+  );
+
+  const createExplorerFile = useCallback(
+    async (parentDir: string, name: string) => {
+      const result = await window.electronAPI.createFolderFile({
+        rootPath,
+        parentDir,
+        name,
+      });
+      await refreshTree();
+      setSelectedPath(result.path);
+      await openTab(result.path, { preview: false, content: '' });
+    },
+    [openTab, refreshTree, rootPath],
+  );
+
+  const createExplorerFolder = useCallback(
+    async (parentDir: string, name: string) => {
+      const result = await window.electronAPI.createFolderEntry({
+        rootPath,
+        parentDir,
+        name,
+      });
+      await refreshTree();
+      setSelectedPath(result.path);
+    },
+    [refreshTree, rootPath],
+  );
+
+  const deleteExplorerPath = useCallback(
+    async (targetPath: string, isDirectory: boolean): Promise<boolean> => {
+      const name = getFileName(targetPath);
+      const confirmed = await window.electronAPI.confirmDeleteEntry({
+        name,
+        isDirectory,
+      });
+      if (confirmed !== 'confirm') {
+        return false;
+      }
+
+      const snapshotted = snapshotActiveTab();
+      const affectedTabs = snapshotted.filter((tab) => {
+        if (isDirectory) {
+          return (
+            tab.filePath === targetPath ||
+            tab.filePath.startsWith(`${targetPath}/`) ||
+            tab.filePath.startsWith(`${targetPath}\\`)
+          );
+        }
+        return tab.filePath === targetPath;
+      });
+
+      for (const tab of affectedTabs) {
+        const isActive = tab.id === activeTabIdRef.current;
+        const result = await confirmDiscardIfDirty(tab.dirty);
+        if (result === 'cancel') {
+          return false;
+        }
+
+        if (result === 'save') {
+          if (isActive) {
+            const saved = await saveActiveDocument();
+            if (!saved) {
+              return false;
+            }
+          } else {
+            const content = prepareMarkdownForSave(
+              tab.editorMarkdown,
+              tab.queuedImages,
+            );
+            await window.electronAPI.saveFile(tab.filePath, content);
+          }
+        }
+      }
+
+      const affectedIds = new Set(affectedTabs.map((tab) => tab.id));
+      const remaining = snapshotted.filter((tab) => !affectedIds.has(tab.id));
+      const wasActiveClosed = affectedIds.has(activeTabIdRef.current ?? '');
+      setTabs(remaining);
+
+      if (wasActiveClosed) {
+        if (remaining.length > 0) {
+          const nextTab = remaining[remaining.length - 1];
+          setActiveTabId(nextTab.id);
+          await loadTabIntoEditor(nextTab);
+          syncWorkspaceWindowTitle(rootPath, remaining, nextTab.id);
+        } else {
+          setActiveTabId(null);
+          clearEditor();
+          syncWorkspaceWindowTitle(rootPath, remaining, null);
+        }
+      } else {
+        syncWorkspaceWindowTitle(rootPath, remaining, activeTabIdRef.current);
+      }
+
+      await window.electronAPI.deleteFolderEntry({ rootPath, targetPath });
+
+      if (
+        selectedPath === targetPath ||
+        (isDirectory &&
+          selectedPath &&
+          (selectedPath.startsWith(`${targetPath}/`) ||
+            selectedPath.startsWith(`${targetPath}\\`)))
+      ) {
+        setSelectedPath(null);
+      }
+
+      await refreshTree();
+      return true;
+    },
+    [
+      clearEditor,
+      loadTabIntoEditor,
+      refreshTree,
+      rootPath,
+      saveActiveDocument,
+      selectedPath,
+      snapshotActiveTab,
+    ],
+  );
+
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
   const activeFilePath = activeTab?.filePath ?? null;
 
@@ -570,6 +708,12 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
     activeTab,
     activeFilePath,
     tree,
+    selectedPath,
+    setSelectedPath,
+    getCreateParentDir,
+    createExplorerFile,
+    createExplorerFolder,
+    deleteExplorerPath,
     queuedImages,
     refreshTree,
     openTab,
