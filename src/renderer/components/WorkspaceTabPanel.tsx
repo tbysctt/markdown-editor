@@ -2,6 +2,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MenuAction } from '../../ipc/channels';
 import { Toolbar } from './Toolbar';
+import { FindBar } from './FindBar';
 import { LinkDialog } from './LinkDialog';
 import { TableInsertDialog } from './TableInsertDialog';
 import { StatusBar } from './StatusBar';
@@ -15,6 +16,8 @@ import { isUntitledPath } from '../types/workspace';
 
 export interface WorkspaceTabPanelHandle {
   runMenuAction: (action: MenuAction) => boolean;
+  openFindBar: (query?: string, matchIndex?: number) => void;
+  closeFindBar: () => void;
   openLinkDialog: () => void;
   openTableDialog: () => void;
   insertImage: () => void;
@@ -44,6 +47,10 @@ export function WorkspaceTabPanel({
 }: WorkspaceTabPanelProps) {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showTableDialog, setShowTableDialog] = useState(false);
+  const [showFindBar, setShowFindBar] = useState(false);
+  const [findBarQuery, setFindBarQuery] = useState<string | undefined>();
+  const [findBarMatchIndex, setFindBarMatchIndex] = useState<number | undefined>();
+  const [findBarRequestId, setFindBarRequestId] = useState(0);
   const markDirtyRef = useRef<(() => void) | null>(null);
   const loadedEpochRef = useRef(-1);
   const dirtyRef = useRef(tab.dirty);
@@ -217,6 +224,8 @@ export function WorkspaceTabPanel({
 
   const panelHandleRef = useRef<WorkspaceTabPanelHandle>({
     runMenuAction: () => false,
+    openFindBar: () => setShowFindBar(true),
+    closeFindBar: () => setShowFindBar(false),
     openLinkDialog: () => setShowLinkDialog(true),
     openTableDialog: () => setShowTableDialog(true),
     insertImage: () => void handleInsertImage(),
@@ -225,6 +234,14 @@ export function WorkspaceTabPanel({
 
   panelHandleRef.current = {
     runMenuAction: (action: MenuAction) => {
+      if (action === 'find') {
+        setFindBarQuery(undefined);
+        setFindBarMatchIndex(undefined);
+        setFindBarRequestId((current) => current + 1);
+        setShowFindBar(true);
+        return true;
+      }
+
       if (!editor) {
         return false;
       }
@@ -234,6 +251,17 @@ export function WorkspaceTabPanel({
         onInsertImage: () => void handleInsertImage(),
         onInsertCode: handleInsertCode,
       });
+    },
+    openFindBar: (query?: string, matchIndex?: number) => {
+      setFindBarQuery(query);
+      setFindBarMatchIndex(matchIndex);
+      setFindBarRequestId((current) => current + 1);
+      setShowFindBar(true);
+    },
+    closeFindBar: () => {
+      setShowFindBar(false);
+      setFindBarQuery(undefined);
+      setFindBarMatchIndex(undefined);
     },
     openLinkDialog: () => setShowLinkDialog(true),
     openTableDialog: () => setShowTableDialog(true),
@@ -271,6 +299,19 @@ export function WorkspaceTabPanel({
           onInsertImage={() => void handleInsertImage()}
           onInsertCode={handleInsertCode}
         />
+        {showFindBar && isActive && (
+          <FindBar
+            key={findBarRequestId}
+            editor={editor}
+            initialQuery={findBarQuery}
+            initialMatchIndex={findBarMatchIndex}
+            onClose={() => {
+              setShowFindBar(false);
+              setFindBarQuery(undefined);
+              setFindBarMatchIndex(undefined);
+            }}
+          />
+        )}
       </header>
 
       <main className="editor-main">

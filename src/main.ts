@@ -387,6 +387,17 @@ const buildMenu = (): Menu => {
         { role: 'copy' },
         { role: 'paste' },
         { role: 'selectAll' },
+        { type: 'separator' },
+        {
+          label: 'Find',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => sendMenuAction('find'),
+        },
+        {
+          label: 'Find in Workspace',
+          accelerator: 'CmdOrCtrl+Shift+F',
+          click: () => sendMenuAction('find-in-workspace'),
+        },
       ],
     },
     { label: 'Format', submenu: formatSubmenu },

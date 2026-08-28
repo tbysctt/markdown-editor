@@ -204,7 +204,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
   }, [rootPath]);
 
   const openTab = useCallback(
-    async (filePath: string, options: OpenTabOptions = {}) => {
+    async (filePath: string, options: OpenTabOptions = {}): Promise<string> => {
       const { preview = false, content } = options;
       const currentTabs = tabsRef.current;
       const existing = currentTabs.find((tab) => tab.filePath === filePath);
@@ -213,7 +213,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
         if (!preview) {
           pinTab(existing.id);
         }
-        return;
+        return existing.id;
       }
 
       const fileContent =
@@ -236,7 +236,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
         setTabs(nextTabs);
         setActiveTabId(pinnedTab.id);
         syncWorkspaceWindowTitle(rootPath, nextTabs, pinnedTab.id);
-        return;
+        return pinnedTab.id;
       }
 
       if (preview && previewTab) {
@@ -249,7 +249,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
           setTabs(nextTabs);
           setActiveTabId(newTab.id);
           syncWorkspaceWindowTitle(rootPath, nextTabs, newTab.id);
-          return;
+          return newTab.id;
         }
 
         const reusedTab: EditorTab = {
@@ -266,7 +266,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
         setTabs(nextTabs);
         setActiveTabId(reusedTab.id);
         syncWorkspaceWindowTitle(rootPath, nextTabs, reusedTab.id);
-        return;
+        return reusedTab.id;
       }
 
       const newTab = createEditorTab(filePath, fileContent, { preview });
@@ -274,6 +274,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
       setTabs(nextTabs);
       setActiveTabId(newTab.id);
       syncWorkspaceWindowTitle(rootPath, nextTabs, newTab.id);
+      return newTab.id;
     },
     [pinTab, rootPath, switchTab],
   );

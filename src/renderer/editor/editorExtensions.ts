@@ -1,3 +1,4 @@
+import { FindAndReplace } from '@tiptap/extension-find-and-replace';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
@@ -34,5 +35,9 @@ export function createEditorExtensions(): Extensions {
     }),
     CharacterCount,
     Markdown,
+    FindAndReplace.configure({
+      injectCSS: true,
+      searchDebounceMs: 150,
+    }),
   ];
 }

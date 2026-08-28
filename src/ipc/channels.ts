@@ -65,7 +65,9 @@ export type MenuAction =
   | 'format-link'
   | 'format-table'
   | 'format-image'
-  | 'format-code-snippet';
+  | 'format-code-snippet'
+  | 'find'
+  | 'find-in-workspace';
 
 export type DiscardChoice = 'save' | 'discard' | 'cancel';
 

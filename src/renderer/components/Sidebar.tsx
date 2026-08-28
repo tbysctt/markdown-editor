@@ -1,14 +1,29 @@
 import { useMemo, useState } from 'react';
 import { FileTree } from './FileTree';
-import { FilePlusIcon, FolderPlusIcon } from './icons/ExplorerIcons';
+import { SidebarSearch } from './SidebarSearch';
+import {
+  ExplorerIcon,
+  FilePlusIcon,
+  FolderPlusIcon,
+  SearchIcon,
+} from './icons/ExplorerIcons';
 import type { FileTreeNode } from '../types/electron';
 import type { OpenTabOptions } from '../types/workspace';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { getFileName } from '../utils/markdown';
+import type { WorkspaceMatch } from '../utils/workspaceSearch';
+
+export type SidebarView = 'explorer' | 'search';
 
 interface SidebarProps {
   rootPath: string;
   tree: FileTreeNode | null;
+  view: SidebarView;
+  onViewChange: (view: SidebarView) => void;
+  searchFocusRequest: number;
+  activeSearchMatchIndex: number;
+  onActiveSearchMatchIndexChange: (index: number) => void;
+  onNavigateToSearchMatch: (match: WorkspaceMatch, query: string) => void;
   activeFilePath: string | null;
   selectedPath: string | null;
   onSelect: (path: string) => void;
@@ -29,6 +44,12 @@ interface ContextMenuState {
 export function Sidebar({
   rootPath,
   tree,
+  view,
+  onViewChange,
+  searchFocusRequest,
+  activeSearchMatchIndex,
+  onActiveSearchMatchIndexChange,
+  onNavigateToSearchMatch,
   activeFilePath,
   selectedPath,
   onSelect,
@@ -83,47 +104,87 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-header-row">
-          <span className="sidebar-title">Explorer</span>
-          <div className="sidebar-actions">
+          <div className="sidebar-view-toggle">
             <button
               type="button"
-              className="sidebar-action-btn"
-              title="New File"
-              aria-label="New File"
-              onClick={() => onNewFile()}
+              className={`sidebar-view-btn${
+                view === 'explorer' ? ' sidebar-view-btn--active' : ''
+              }`}
+              title="Explorer"
+              aria-label="Explorer"
+              aria-pressed={view === 'explorer'}
+              onClick={() => onViewChange('explorer')}
             >
-              <FilePlusIcon />
+              <ExplorerIcon />
             </button>
             <button
               type="button"
-              className="sidebar-action-btn"
-              title="New Folder"
-              aria-label="New Folder"
-              onClick={() => onNewFolder()}
+              className={`sidebar-view-btn${
+                view === 'search' ? ' sidebar-view-btn--active' : ''
+              }`}
+              title="Search"
+              aria-label="Search"
+              aria-pressed={view === 'search'}
+              onClick={() => onViewChange('search')}
             >
-              <FolderPlusIcon />
+              <SearchIcon />
             </button>
           </div>
+          <span className="sidebar-title">
+            {view === 'explorer' ? 'Explorer' : 'Search'}
+          </span>
+          {view === 'explorer' && (
+            <div className="sidebar-actions">
+              <button
+                type="button"
+                className="sidebar-action-btn"
+                title="New File"
+                aria-label="New File"
+                onClick={() => onNewFile()}
+              >
+                <FilePlusIcon />
+              </button>
+              <button
+                type="button"
+                className="sidebar-action-btn"
+                title="New Folder"
+                aria-label="New Folder"
+                onClick={() => onNewFolder()}
+              >
+                <FolderPlusIcon />
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <div className="sidebar-content">
-        <FileTree
-          rootPath={rootPath}
-          tree={tree}
-          activeFilePath={activeFilePath}
-          selectedPath={selectedPath}
-          onSelect={onSelect}
-          onOpenFile={onOpenFile}
-          onContextMenu={(event, node, isRoot) => {
-            onSelect(node.path);
-            setContextMenu({
-              x: event.clientX,
-              y: event.clientY,
-              node,
-              isRoot,
-            });
-          }}
-        />
+        {view === 'explorer' ? (
+          <FileTree
+            rootPath={rootPath}
+            tree={tree}
+            activeFilePath={activeFilePath}
+            selectedPath={selectedPath}
+            onSelect={onSelect}
+            onOpenFile={onOpenFile}
+            onContextMenu={(event, node, isRoot) => {
+              onSelect(node.path);
+              setContextMenu({
+                x: event.clientX,
+                y: event.clientY,
+                node,
+                isRoot,
+              });
+            }}
+          />
+        ) : (
+          <SidebarSearch
+            tree={tree}
+            focusRequest={searchFocusRequest}
+            activeMatchIndex={activeSearchMatchIndex}
+            onActiveMatchIndexChange={onActiveSearchMatchIndexChange}
+            onNavigateToMatch={onNavigateToSearchMatch}
+          />
+        )}
       </div>
       {contextMenu && (
         <ContextMenu

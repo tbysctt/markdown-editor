@@ -61,6 +61,12 @@ export function SingleDocumentView({
   const handleMenuAction = useCallback(
     (action: MenuAction) => {
       switch (action) {
+        case 'find':
+          if (!activeTabId) {
+            return;
+          }
+          panelHandlesRef.current.get(activeTabId)?.openFindBar();
+          return;
         case 'zoom-in':
           setZoom((current) => Math.min(ZOOM_MAX, current + ZOOM_STEP));
           return;
@@ -86,6 +92,7 @@ export function SingleDocumentView({
   useEffect(() => {
     const unsubscribe = window.electronAPI.onMenuAction((action) => {
       const editorActions: MenuAction[] = [
+        'find',
         'export-pdf',
         'print',
         'zoom-in',

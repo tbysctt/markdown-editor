@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MenuAction } from '../../ipc/channels';
-import { Sidebar, getExplorerRenameDefaultValue } from './Sidebar';
+import { Sidebar, getExplorerRenameDefaultValue, type SidebarView } from './Sidebar';
 import { TabBar } from './TabBar';
 import { NamePromptDialog } from './NamePromptDialog';
 import {
@@ -11,6 +11,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../editor/editorConfig';
 import type { OpenTabOptions } from '../types/workspace';
 import { getFileName } from '../utils/markdown';
+import type { WorkspaceMatch } from '../utils/workspaceSearch';
 
 interface WorkspaceViewProps {
   rootPath: string;
@@ -36,7 +37,11 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
     null,
   );
   const [zoom, setZoom] = useState(100);
+  const [sidebarView, setSidebarView] = useState<SidebarView>('explorer');
+  const [searchFocusRequest, setSearchFocusRequest] = useState(0);
+  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(-1);
   const panelHandlesRef = useRef(new Map<string, WorkspaceTabPanelHandle>());
+  const activeTabIdRef = useRef<string | null>(null);
 
   const {
     tabs,
@@ -60,6 +65,30 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
     renameExplorerEntry,
     renameTab,
   } = useWorkspace({ rootPath });
+
+  activeTabIdRef.current = activeTabId;
+
+  const openFindInActivePanel = useCallback(
+    (query?: string, matchIndex?: number) => {
+      if (!activeTabIdRef.current) {
+        return;
+      }
+      panelHandlesRef.current
+        .get(activeTabIdRef.current)
+        ?.openFindBar(query, matchIndex);
+    },
+    [],
+  );
+
+  const handleNavigateToSearchMatch = useCallback(
+    async (match: WorkspaceMatch, query: string) => {
+      const tabId = await openTab(match.filePath, { preview: false });
+      window.setTimeout(() => {
+        panelHandlesRef.current.get(tabId)?.openFindBar(query, match.indexInFile);
+      }, 150);
+    },
+    [openTab],
+  );
 
   const registerPanelHandle = useCallback(
     (tabId: string, handle: WorkspaceTabPanelHandle) => {
@@ -152,6 +181,13 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
   const handleMenuAction = useCallback(
     (action: MenuAction) => {
       switch (action) {
+        case 'find':
+          openFindInActivePanel();
+          return;
+        case 'find-in-workspace':
+          setSidebarView('search');
+          setSearchFocusRequest((current) => current + 1);
+          return;
         case 'zoom-in':
           setZoom((current) => Math.min(ZOOM_MAX, current + ZOOM_STEP));
           return;
@@ -171,12 +207,14 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
 
       panelHandlesRef.current.get(activeTabId)?.runMenuAction(action);
     },
-    [activeTabId],
+    [activeTabId, openFindInActivePanel],
   );
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onMenuAction((action) => {
       const editorActions: MenuAction[] = [
+        'find',
+        'find-in-workspace',
         'export-pdf',
         'print',
         'zoom-in',
@@ -234,6 +272,12 @@ export function WorkspaceView({ rootPath }: WorkspaceViewProps) {
       <Sidebar
         rootPath={rootPath}
         tree={tree}
+        view={sidebarView}
+        onViewChange={setSidebarView}
+        searchFocusRequest={searchFocusRequest}
+        activeSearchMatchIndex={activeSearchMatchIndex}
+        onActiveSearchMatchIndexChange={setActiveSearchMatchIndex}
+        onNavigateToSearchMatch={handleNavigateToSearchMatch}
         activeFilePath={activeFilePath}
         selectedPath={selectedPath}
         onSelect={setSelectedPath}
