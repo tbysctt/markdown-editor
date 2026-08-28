@@ -310,7 +310,6 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
       if (filtered.length === 0) {
         setActiveTabId(null);
         syncWorkspaceWindowTitle(rootPath, filtered, null);
-        window.electronAPI.requestClose();
         return true;
       }
 

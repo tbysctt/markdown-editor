@@ -156,7 +156,6 @@ export function useStandaloneTabs() {
     if (filtered.length === 0) {
       setActiveTabId(null);
       syncStandaloneWindowTitle(filtered, null);
-      window.electronAPI.requestClose();
       return true;
     }
 
