@@ -1,12 +1,4 @@
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
-import { TableKit } from '@tiptap/extension-table';
-import { CharacterCount } from '@tiptap/extensions';
-import { Markdown } from '@tiptap/markdown';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MenuAction } from '../../ipc/channels';
 import { Toolbar } from './Toolbar';
@@ -16,17 +8,14 @@ import { StatusBar } from './StatusBar';
 import { useDocument } from '../hooks/useDocument';
 import { getPrintableHtml } from '../utils/print';
 import { getFileName } from '../utils/markdown';
-import { CodeBlockExtension } from '../extensions/codeBlockExtension';
+import { createEditorExtensions } from '../editor/editorExtensions';
+import { editorProps, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../editor/editorConfig';
 
 interface EditorViewProps {
   initialContent?: string;
   initialPath?: string | null;
   onNavigateWelcome: () => void;
 }
-
-const ZOOM_MIN = 50;
-const ZOOM_MAX = 200;
-const ZOOM_STEP = 10;
 
 export function EditorView({
   initialContent = '',
@@ -39,36 +28,8 @@ export function EditorView({
   const markDirtyRef = useRef<(() => void) | null>(null);
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4, 5] },
-        codeBlock: false,
-      }),
-      CodeBlockExtension,
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        defaultProtocol: 'https',
-      }),
-      Image.configure({
-        inline: false,
-        allowBase64: false,
-      }),
-      TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-      TableKit.configure({
-        table: { resizable: true },
-      }),
-      CharacterCount,
-      Markdown,
-    ],
-    editorProps: {
-      attributes: {
-        class: 'editor-content',
-      },
-    },
+    extensions: createEditorExtensions(),
+    editorProps,
     onUpdate: () => {
       markDirtyRef.current?.();
     },

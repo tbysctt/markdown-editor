@@ -1,24 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Editor } from '@tiptap/react';
 import type { MenuAction } from '../../ipc/channels';
 import type { FileTreeNode } from '../types/electron';
 import {
-  createTabId,
+  createEditorTab,
   type EditorTab,
   type OpenTabOptions,
+  type TabEditorHandle,
 } from '../types/workspace';
 import { confirmDiscardIfDirty } from '../utils/documentConfirm';
-import {
-  buildWorkspaceTitle,
-  getFileName,
-  prepareMarkdownForEditor,
-  prepareMarkdownForSave,
-  type QueuedImage,
-} from '../utils/markdown';
+import { buildWorkspaceTitle, getFileName } from '../utils/markdown';
 import { getParentDirForCreate } from '../utils/explorer';
 
 interface UseWorkspaceOptions {
-  editor: Editor | null;
   rootPath: string;
 }
 
@@ -39,21 +32,18 @@ function syncWorkspaceWindowTitle(
   );
 }
 
-export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
+export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tree, setTree] = useState<FileTreeNode | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [queuedImages, setQueuedImages] = useState<QueuedImage[]>([]);
-  const suppressDirtyRef = useRef(false);
   const tabsRef = useRef(tabs);
   const activeTabIdRef = useRef(activeTabId);
-  const queuedImagesRef = useRef(queuedImages);
   const treeRef = useRef(tree);
+  const editorRegistryRef = useRef(new Map<string, TabEditorHandle>());
 
   tabsRef.current = tabs;
   activeTabIdRef.current = activeTabId;
-  queuedImagesRef.current = queuedImages;
   treeRef.current = tree;
 
   const refreshTree = useCallback(async () => {
@@ -65,6 +55,57 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
     void refreshTree();
   }, [refreshTree]);
 
+  const registerTabEditor = useCallback((handle: TabEditorHandle) => {
+    editorRegistryRef.current.set(handle.tabId, handle);
+  }, []);
+
+  const unregisterTabEditor = useCallback((tabId: string) => {
+    editorRegistryRef.current.delete(tabId);
+  }, []);
+
+  const getActiveHandle = useCallback((): TabEditorHandle | null => {
+    if (!activeTabIdRef.current) {
+      return null;
+    }
+    return editorRegistryRef.current.get(activeTabIdRef.current) ?? null;
+  }, []);
+
+  const setTabDirty = useCallback(
+    (tabId: string, dirty: boolean) => {
+      setTabs((current) => {
+        const next = current.map((tab) =>
+          tab.id === tabId
+            ? { ...tab, dirty, isPreview: dirty ? false : tab.isPreview }
+            : tab,
+        );
+        syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
+        return next;
+      });
+    },
+    [rootPath],
+  );
+
+  const updateTabFilePath = useCallback(
+    (tabId: string, newPath: string) => {
+      setTabs((current) => {
+        const next = current.map((tab) =>
+          tab.id === tabId
+            ? {
+                ...tab,
+                filePath: newPath,
+                dirty: false,
+                isPreview: false,
+              }
+            : tab,
+        );
+        syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
+        return next;
+      });
+      void refreshTree();
+    },
+    [refreshTree, rootPath],
+  );
+
   useEffect(() => {
     void window.electronAPI.startFolderWatch(rootPath);
 
@@ -75,36 +116,33 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
     const unsubRename = window.electronAPI.onFolderRenamed(
       ({ oldPath, newPath }) => {
         setTabs((current) =>
-          current.map((tab) =>
-            tab.filePath === oldPath ? { ...tab, filePath: newPath } : tab,
-          ),
-        );
+          current.map((tab) => {
+            if (tab.filePath !== oldPath) {
+              return tab;
+            }
 
-        const activeTab = tabsRef.current.find(
-          (tab) => tab.id === activeTabIdRef.current,
+            if (tab.dirty) {
+              return { ...tab, filePath: newPath };
+            }
+
+            void window.electronAPI.readFolderFile(newPath).then((file) => {
+              setTabs((inner) =>
+                inner.map((innerTab) =>
+                  innerTab.id === tab.id
+                    ? {
+                        ...innerTab,
+                        filePath: newPath,
+                        initialContent: file.content,
+                        contentEpoch: innerTab.contentEpoch + 1,
+                      }
+                    : innerTab,
+                ),
+              );
+            });
+
+            return { ...tab, filePath: newPath };
+          }),
         );
-        if (
-          activeTab?.filePath === oldPath &&
-          !activeTab.dirty &&
-          editor
-        ) {
-          void window.electronAPI.readFolderFile(newPath).then((file) => {
-            suppressDirtyRef.current = true;
-            void prepareMarkdownForEditor(file.content, newPath).then(
-              (prepared) => {
-                editor.commands.setContent(prepared, { contentType: 'markdown' });
-                setTabs((current) =>
-                  current.map((tab) =>
-                    tab.id === activeTabIdRef.current
-                      ? { ...tab, editorMarkdown: file.content }
-                      : tab,
-                  ),
-                );
-                suppressDirtyRef.current = false;
-              },
-            );
-          });
-        }
 
         void refreshTree();
       },
@@ -115,62 +153,7 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
       unsubRename();
       void window.electronAPI.stopFolderWatch();
     };
-  }, [editor, refreshTree, rootPath]);
-
-  const getEditorMarkdown = useCallback((): string => {
-    if (!editor) {
-      return '';
-    }
-    return prepareMarkdownForSave(editor.getMarkdown(), queuedImagesRef.current);
-  }, [editor]);
-
-  const snapshotActiveTab = useCallback((): EditorTab[] => {
-    const currentTabs = tabsRef.current;
-    const currentActiveId = activeTabIdRef.current;
-    if (!editor || !currentActiveId) {
-      return currentTabs;
-    }
-
-    const markdown = getEditorMarkdown();
-    return currentTabs.map((tab) =>
-      tab.id === currentActiveId
-        ? {
-            ...tab,
-            editorMarkdown: markdown,
-            queuedImages: queuedImagesRef.current,
-          }
-        : tab,
-    );
-  }, [editor, getEditorMarkdown]);
-
-  const loadTabIntoEditor = useCallback(
-    async (tab: EditorTab) => {
-      if (!editor) {
-        return;
-      }
-
-      suppressDirtyRef.current = true;
-      const prepared = await prepareMarkdownForEditor(
-        tab.editorMarkdown,
-        tab.filePath,
-      );
-      editor.commands.setContent(prepared, { contentType: 'markdown' });
-      setQueuedImages(tab.queuedImages);
-      suppressDirtyRef.current = false;
-    },
-    [editor],
-  );
-
-  const clearEditor = useCallback(() => {
-    if (!editor) {
-      return;
-    }
-
-    suppressDirtyRef.current = true;
-    editor.commands.setContent('', { contentType: 'markdown' });
-    setQueuedImages([]);
-    suppressDirtyRef.current = false;
-  }, [editor]);
+  }, [refreshTree, rootPath]);
 
   const pinTab = useCallback(
     (tabId: string) => {
@@ -185,102 +168,40 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
     [rootPath],
   );
 
-  const markActiveTabDirty = useCallback(() => {
-    if (suppressDirtyRef.current || !activeTabIdRef.current) {
+  const saveActiveDocument = useCallback(async (): Promise<boolean> => {
+    const handle = getActiveHandle();
+    if (!handle) {
+      return false;
+    }
+
+    const saved = await handle.saveDocument();
+    if (saved) {
+      setTabDirty(handle.tabId, false);
+    }
+    return saved;
+  }, [getActiveHandle, setTabDirty]);
+
+  const switchTab = useCallback((tabId: string) => {
+    if (tabId === activeTabIdRef.current) {
       return;
     }
 
-    setTabs((current) => {
-      const next = current.map((tab) =>
-        tab.id === activeTabIdRef.current
-          ? { ...tab, dirty: true, isPreview: false }
-          : tab,
-      );
-      syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
-      return next;
-    });
+    const targetTab = tabsRef.current.find((tab) => tab.id === tabId);
+    if (!targetTab) {
+      return;
+    }
+
+    setActiveTabId(tabId);
+    syncWorkspaceWindowTitle(rootPath, tabsRef.current, tabId);
   }, [rootPath]);
-
-  const saveActiveDocument = useCallback(async (): Promise<boolean> => {
-    if (!editor || !activeTabIdRef.current) {
-      return false;
-    }
-
-    const activeTab = tabsRef.current.find(
-      (tab) => tab.id === activeTabIdRef.current,
-    );
-    if (!activeTab) {
-      return false;
-    }
-
-    let content = getEditorMarkdown();
-    const targetPath = activeTab.filePath;
-
-    if (queuedImagesRef.current.length > 0) {
-      const copied = await window.electronAPI.copyQueuedImages(
-        targetPath,
-        queuedImagesRef.current.map((image) => ({
-          tempPath: image.tempPath,
-          relativePath: image.relativePath,
-        })),
-      );
-
-      const updatedQueued = queuedImagesRef.current.map((image, index) => ({
-        ...image,
-        relativePath: copied[index]?.relativePath ?? image.relativePath,
-      }));
-
-      content = prepareMarkdownForSave(editor.getMarkdown(), updatedQueued);
-      setQueuedImages([]);
-    }
-
-    await window.electronAPI.saveFile(targetPath, content);
-
-    setTabs((current) => {
-      const next = current.map((tab) =>
-        tab.id === activeTabIdRef.current
-          ? {
-              ...tab,
-              dirty: false,
-              isPreview: false,
-              editorMarkdown: content,
-              queuedImages: [],
-            }
-          : tab,
-      );
-      syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
-      return next;
-    });
-    return true;
-  }, [editor, getEditorMarkdown, rootPath]);
-
-  const switchTab = useCallback(
-    async (tabId: string) => {
-      if (tabId === activeTabIdRef.current) {
-        return;
-      }
-
-      const snapshotted = snapshotActiveTab();
-      const targetTab = snapshotted.find((tab) => tab.id === tabId);
-      if (!targetTab) {
-        return;
-      }
-
-      setTabs(snapshotted);
-      setActiveTabId(tabId);
-      await loadTabIntoEditor(targetTab);
-      syncWorkspaceWindowTitle(rootPath, snapshotted, tabId);
-    },
-    [loadTabIntoEditor, rootPath, snapshotActiveTab],
-  );
 
   const openTab = useCallback(
     async (filePath: string, options: OpenTabOptions = {}) => {
       const { preview = false, content } = options;
-      const snapshotted = snapshotActiveTab();
-      const existing = snapshotted.find((tab) => tab.filePath === filePath);
+      const currentTabs = tabsRef.current;
+      const existing = currentTabs.find((tab) => tab.filePath === filePath);
       if (existing) {
-        await switchTab(existing.id);
+        switchTab(existing.id);
         if (!preview) {
           pinTab(existing.id);
         }
@@ -290,7 +211,7 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
       const fileContent =
         content ?? (await window.electronAPI.readFolderFile(filePath)).content;
 
-      const previewTab = snapshotted.find((tab) => tab.isPreview);
+      const previewTab = currentTabs.find((tab) => tab.isPreview);
 
       if (!preview && previewTab && !previewTab.dirty) {
         const pinnedTab: EditorTab = {
@@ -298,36 +219,27 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
           filePath,
           dirty: false,
           isPreview: false,
-          editorMarkdown: fileContent,
-          queuedImages: [],
+          initialContent: fileContent,
+          contentEpoch: previewTab.contentEpoch + 1,
         };
-        const nextTabs = snapshotted.map((tab) =>
+        const nextTabs = currentTabs.map((tab) =>
           tab.id === previewTab.id ? pinnedTab : tab,
         );
         setTabs(nextTabs);
         setActiveTabId(pinnedTab.id);
-        await loadTabIntoEditor(pinnedTab);
         syncWorkspaceWindowTitle(rootPath, nextTabs, pinnedTab.id);
         return;
       }
 
       if (preview && previewTab) {
         if (previewTab.dirty) {
-          const pinnedTabs = snapshotted.map((tab) =>
+          const pinnedTabs = currentTabs.map((tab) =>
             tab.id === previewTab.id ? { ...tab, isPreview: false } : tab,
           );
-          const newTab: EditorTab = {
-            id: createTabId(),
-            filePath,
-            dirty: false,
-            isPreview: true,
-            editorMarkdown: fileContent,
-            queuedImages: [],
-          };
+          const newTab = createEditorTab(filePath, fileContent, { preview: true });
           const nextTabs = [...pinnedTabs, newTab];
           setTabs(nextTabs);
           setActiveTabId(newTab.id);
-          await loadTabIntoEditor(newTab);
           syncWorkspaceWindowTitle(rootPath, nextTabs, newTab.id);
           return;
         }
@@ -337,46 +249,37 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
           filePath,
           dirty: false,
           isPreview: true,
-          editorMarkdown: fileContent,
-          queuedImages: [],
+          initialContent: fileContent,
+          contentEpoch: previewTab.contentEpoch + 1,
         };
-        const nextTabs = snapshotted.map((tab) =>
+        const nextTabs = currentTabs.map((tab) =>
           tab.id === previewTab.id ? reusedTab : tab,
         );
         setTabs(nextTabs);
         setActiveTabId(reusedTab.id);
-        await loadTabIntoEditor(reusedTab);
         syncWorkspaceWindowTitle(rootPath, nextTabs, reusedTab.id);
         return;
       }
 
-      const newTab: EditorTab = {
-        id: createTabId(),
-        filePath,
-        dirty: false,
-        isPreview: preview,
-        editorMarkdown: fileContent,
-        queuedImages: [],
-      };
-
-      const nextTabs = [...snapshotted, newTab];
+      const newTab = createEditorTab(filePath, fileContent, { preview });
+      const nextTabs = [...currentTabs, newTab];
       setTabs(nextTabs);
       setActiveTabId(newTab.id);
-      await loadTabIntoEditor(newTab);
       syncWorkspaceWindowTitle(rootPath, nextTabs, newTab.id);
     },
-    [loadTabIntoEditor, pinTab, rootPath, snapshotActiveTab, switchTab],
+    [pinTab, rootPath, switchTab],
   );
 
   const closeTab = useCallback(
     async (tabId: string): Promise<boolean> => {
-      const snapshotted = snapshotActiveTab();
-      const tabToClose = snapshotted.find((tab) => tab.id === tabId);
+      const tabToClose = tabsRef.current.find((tab) => tab.id === tabId);
       if (!tabToClose) {
         return false;
       }
 
-      const result = await confirmDiscardIfDirty(tabToClose.dirty);
+      const handle = editorRegistryRef.current.get(tabId);
+      const isDirty = handle?.dirty ?? tabToClose.dirty;
+      const result = await confirmDiscardIfDirty(isDirty);
       if (result === 'cancel') {
         return false;
       }
@@ -384,33 +287,27 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
       const isActive = tabId === activeTabIdRef.current;
 
       if (result === 'save') {
-        if (isActive) {
-          const saved = await saveActiveDocument();
+        if (handle) {
+          const saved = await handle.saveDocument();
           if (!saved) {
             return false;
           }
-        } else {
-          const content = prepareMarkdownForSave(
-            tabToClose.editorMarkdown,
-            tabToClose.queuedImages,
-          );
-          await window.electronAPI.saveFile(tabToClose.filePath, content);
         }
       }
 
-      const filtered = snapshotted.filter((tab) => tab.id !== tabId);
+      const filtered = tabsRef.current.filter((tab) => tab.id !== tabId);
       setTabs(filtered);
 
       if (isActive) {
         if (filtered.length > 0) {
-          const closedIndex = snapshotted.findIndex((tab) => tab.id === tabId);
+          const closedIndex = tabsRef.current.findIndex(
+            (tab) => tab.id === tabId,
+          );
           const nextTab = filtered[Math.min(closedIndex, filtered.length - 1)];
           setActiveTabId(nextTab.id);
-          await loadTabIntoEditor(nextTab);
           syncWorkspaceWindowTitle(rootPath, filtered, nextTab.id);
         } else {
           setActiveTabId(null);
-          clearEditor();
           syncWorkspaceWindowTitle(rootPath, filtered, null);
         }
       } else {
@@ -419,67 +316,17 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
 
       return true;
     },
-    [
-      clearEditor,
-      loadTabIntoEditor,
-      rootPath,
-      saveActiveDocument,
-      snapshotActiveTab,
-    ],
+    [rootPath],
   );
 
   const saveActiveDocumentAs = useCallback(async (): Promise<boolean> => {
-    if (!editor || !activeTabIdRef.current) {
+    const handle = getActiveHandle();
+    if (!handle) {
       return false;
     }
 
-    let content = getEditorMarkdown();
-    const result = await window.electronAPI.saveAs(content);
-    if (!result) {
-      return false;
-    }
-
-    const targetPath = result.path;
-
-    if (queuedImagesRef.current.length > 0) {
-      const copied = await window.electronAPI.copyQueuedImages(
-        targetPath,
-        queuedImagesRef.current.map((image) => ({
-          tempPath: image.tempPath,
-          relativePath: image.relativePath,
-        })),
-      );
-
-      const updatedQueued = queuedImagesRef.current.map((image, index) => ({
-        ...image,
-        relativePath: copied[index]?.relativePath ?? image.relativePath,
-      }));
-
-      content = prepareMarkdownForSave(editor.getMarkdown(), updatedQueued);
-      setQueuedImages([]);
-      await window.electronAPI.saveFile(targetPath, content);
-    }
-
-    setTabs((current) => {
-      const next = current.map((tab) =>
-        tab.id === activeTabIdRef.current
-          ? {
-              ...tab,
-              filePath: targetPath,
-              dirty: false,
-              isPreview: false,
-              editorMarkdown: content,
-              queuedImages: [],
-            }
-          : tab,
-      );
-      syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
-      return next;
-    });
-    setQueuedImages([]);
-    void refreshTree();
-    return true;
-  }, [editor, getEditorMarkdown, refreshTree, rootPath]);
+    return handle.saveDocumentAs();
+  }, [getActiveHandle]);
 
   const closeActiveTab = useCallback(async () => {
     if (!activeTabIdRef.current) {
@@ -489,24 +336,19 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
   }, [closeTab]);
 
   const saveAllDirtyTabs = useCallback(async (): Promise<boolean> => {
-    const snapshotted = snapshotActiveTab();
-
-    for (const tab of snapshotted) {
+    for (const tab of tabsRef.current) {
       if (!tab.dirty) {
         continue;
       }
 
-      if (tab.id === activeTabIdRef.current) {
-        const saved = await saveActiveDocument();
-        if (!saved) {
-          return false;
-        }
-      } else {
-        const content = prepareMarkdownForSave(
-          tab.editorMarkdown,
-          tab.queuedImages,
-        );
-        await window.electronAPI.saveFile(tab.filePath, content);
+      const handle = editorRegistryRef.current.get(tab.id);
+      if (!handle) {
+        continue;
+      }
+
+      const saved = await handle.saveDocument();
+      if (!saved) {
+        return false;
       }
     }
 
@@ -516,15 +358,7 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
       return next;
     });
     return true;
-  }, [rootPath, saveActiveDocument, snapshotActiveTab]);
-
-  const addQueuedImage = useCallback(
-    (image: QueuedImage) => {
-      setQueuedImages((current) => [...current, image]);
-      markActiveTabDirty();
-    },
-    [markActiveTabDirty],
-  );
+  }, [rootPath]);
 
   const getCreateParentDir = useCallback(
     (overrideParentDir?: string) => {
@@ -578,8 +412,8 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
         return false;
       }
 
-      const snapshotted = snapshotActiveTab();
-      const affectedTabs = snapshotted.filter((tab) => {
+      const currentTabs = tabsRef.current;
+      const affectedTabs = currentTabs.filter((tab) => {
         if (isDirectory) {
           return (
             tab.filePath === targetPath ||
@@ -591,30 +425,23 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
       });
 
       for (const tab of affectedTabs) {
-        const isActive = tab.id === activeTabIdRef.current;
-        const result = await confirmDiscardIfDirty(tab.dirty);
+        const handle = editorRegistryRef.current.get(tab.id);
+        const isDirty = handle?.dirty ?? tab.dirty;
+        const result = await confirmDiscardIfDirty(isDirty);
         if (result === 'cancel') {
           return false;
         }
 
-        if (result === 'save') {
-          if (isActive) {
-            const saved = await saveActiveDocument();
-            if (!saved) {
-              return false;
-            }
-          } else {
-            const content = prepareMarkdownForSave(
-              tab.editorMarkdown,
-              tab.queuedImages,
-            );
-            await window.electronAPI.saveFile(tab.filePath, content);
+        if (result === 'save' && handle) {
+          const saved = await handle.saveDocument();
+          if (!saved) {
+            return false;
           }
         }
       }
 
       const affectedIds = new Set(affectedTabs.map((tab) => tab.id));
-      const remaining = snapshotted.filter((tab) => !affectedIds.has(tab.id));
+      const remaining = currentTabs.filter((tab) => !affectedIds.has(tab.id));
       const wasActiveClosed = affectedIds.has(activeTabIdRef.current ?? '');
       setTabs(remaining);
 
@@ -622,11 +449,9 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
         if (remaining.length > 0) {
           const nextTab = remaining[remaining.length - 1];
           setActiveTabId(nextTab.id);
-          await loadTabIntoEditor(nextTab);
           syncWorkspaceWindowTitle(rootPath, remaining, nextTab.id);
         } else {
           setActiveTabId(null);
-          clearEditor();
           syncWorkspaceWindowTitle(rootPath, remaining, null);
         }
       } else {
@@ -648,15 +473,7 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
       await refreshTree();
       return true;
     },
-    [
-      clearEditor,
-      loadTabIntoEditor,
-      refreshTree,
-      rootPath,
-      saveActiveDocument,
-      selectedPath,
-      snapshotActiveTab,
-    ],
+    [refreshTree, rootPath, selectedPath],
   );
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
@@ -714,16 +531,18 @@ export function useWorkspace({ editor, rootPath }: UseWorkspaceOptions) {
     createExplorerFile,
     createExplorerFolder,
     deleteExplorerPath,
-    queuedImages,
     refreshTree,
     openTab,
     closeTab,
     switchTab,
     pinTab,
     closeActiveTab,
-    markActiveTabDirty,
     saveActiveDocument,
     saveActiveDocumentAs,
-    addQueuedImage,
+    registerTabEditor,
+    unregisterTabEditor,
+    setTabDirty,
+    updateTabFilePath,
+    getActiveHandle,
   };
 }

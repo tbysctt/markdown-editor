@@ -100,7 +100,10 @@ button {
 .editor-view {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   height: 100%;
+  position: relative;
 }
 
 .editor-header {
@@ -841,6 +844,19 @@ button {
 .workspace-main .editor-view {
   flex: 1;
   min-height: 0;
+}
+
+.workspace-tab-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: absolute;
+  inset: 0;
+}
+
+.workspace-tab-panel--hidden {
+  display: none;
 }
 
 .context-menu {
