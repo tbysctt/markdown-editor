@@ -82,3 +82,17 @@ export function buildWindowTitle(
   const prefix = dirty ? '*' : '';
   return `${prefix}${name} — MDEditor`;
 }
+
+export function buildWorkspaceTitle(
+  rootPath: string,
+  activeFilePath: string | null,
+  activeDirty: boolean,
+): string {
+  const folderName = getFileName(rootPath);
+  if (activeFilePath) {
+    const fileName = getFileName(activeFilePath);
+    const prefix = activeDirty ? '*' : '';
+    return `${prefix}${fileName} — ${folderName} — MDEditor`;
+  }
+  return `${folderName} — MDEditor`;
+}

@@ -11,7 +11,13 @@ import fs from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import started from 'electron-squirrel-startup';
 import { IPC } from './ipc/channels';
-import type { DiscardChoice } from './ipc/channels';
+import type { DiscardChoice, WindowMode } from './ipc/channels';
+import { readDirectoryTree } from './main/folderTree';
+import {
+  startFolderWatch,
+  stopFolderWatch,
+  suppressPathForWatch,
+} from './main/folderWatcher';
 import packageJson from '../package.json';
 
 if (started) {
@@ -24,11 +30,21 @@ interface WindowState {
   window: BrowserWindow;
   isDirty: boolean;
   hasDocument: boolean;
+  mode: WindowMode;
 }
 
 interface InitialDocument {
   path: string;
   content: string;
+}
+
+interface InitialFolder {
+  rootPath: string;
+}
+
+interface CreateWindowOptions {
+  initialDocument?: InitialDocument;
+  initialFolder?: InitialFolder;
 }
 
 const windows = new Map<number, WindowState>();
@@ -139,12 +155,34 @@ const handleFileOpen = async (): Promise<void> => {
   const content = await fs.readFile(filePath, 'utf-8');
   const document: InitialDocument = { path: filePath, content };
 
-  if (state?.hasDocument) {
-    createWindow(document);
+  if (state?.hasDocument && state.mode !== 'folder') {
+    createWindow({ initialDocument: document });
     return;
   }
 
   focusedWindow.webContents.send(IPC.WINDOW_OPEN_DOCUMENT, document);
+};
+
+const handleFolderOpen = async (): Promise<void> => {
+  const focusedWindow = getFocusedWindow();
+  const state = getWindowState(focusedWindow);
+
+  const { canceled, filePaths } = await dialog.showOpenDialog(focusedWindow, {
+    properties: ['openDirectory'],
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return;
+  }
+
+  const rootPath = filePaths[0];
+
+  if (state?.hasDocument) {
+    createWindow({ initialFolder: { rootPath } });
+    return;
+  }
+
+  focusedWindow.webContents.send(IPC.WINDOW_OPEN_FOLDER, { rootPath });
 };
 
 const buildMenu = (): Menu => {
@@ -161,6 +199,13 @@ const buildMenu = (): Menu => {
       accelerator: 'CmdOrCtrl+O',
       click: () => {
         void handleFileOpen();
+      },
+    },
+    {
+      label: 'Open Folder…',
+      accelerator: 'CmdOrCtrl+Shift+O',
+      click: () => {
+        void handleFolderOpen();
       },
     },
     {
@@ -359,6 +404,36 @@ const buildMenu = (): Menu => {
 };
 
 const registerIpcHandlers = (): void => {
+  ipcMain.handle(IPC.FOLDER_OPEN, async (event) => {
+    const parentWindow = getWindowFromSender(event.sender) ?? getFocusedWindow();
+    const { canceled, filePaths } = await dialog.showOpenDialog(parentWindow, {
+      properties: ['openDirectory'],
+    });
+
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+
+    return { rootPath: filePaths[0] };
+  });
+
+  ipcMain.handle(IPC.FOLDER_READ_TREE, async (_event, dirPath: string) => {
+    return readDirectoryTree(dirPath);
+  });
+
+  ipcMain.handle(IPC.FOLDER_READ_FILE, async (_event, filePath: string) => {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return { path: filePath, content };
+  });
+
+  ipcMain.handle(IPC.FOLDER_WATCH_START, (event, rootPath: string) => {
+    startFolderWatch(event.sender, rootPath);
+  });
+
+  ipcMain.handle(IPC.FOLDER_WATCH_STOP, (event) => {
+    stopFolderWatch(event.sender);
+  });
+
   ipcMain.handle(IPC.FILE_OPEN, async (event) => {
     const parentWindow = getWindowFromSender(event.sender) ?? getFocusedWindow();
     const { canceled, filePaths } = await dialog.showOpenDialog(parentWindow, {
@@ -378,6 +453,7 @@ const registerIpcHandlers = (): void => {
   ipcMain.handle(
     IPC.FILE_SAVE,
     async (_event, filePath: string, content: string) => {
+      suppressPathForWatch(filePath);
       await fs.writeFile(filePath, content, 'utf-8');
     },
   );
@@ -393,6 +469,7 @@ const registerIpcHandlers = (): void => {
       return null;
     }
 
+    suppressPathForWatch(filePath);
     await fs.writeFile(filePath, content, 'utf-8');
     return { path: filePath };
   });
@@ -552,7 +629,7 @@ const registerIpcHandlers = (): void => {
 
   ipcMain.on(
     IPC.DOC_SESSION_CHANGED,
-    (event, payload: { hasDocument: boolean }) => {
+    (event, payload: { hasDocument: boolean; mode: WindowMode }) => {
       const window = getWindowFromSender(event.sender);
       if (!window) {
         return;
@@ -561,6 +638,7 @@ const registerIpcHandlers = (): void => {
       const state = getWindowState(window);
       if (state) {
         state.hasDocument = payload.hasDocument;
+        state.mode = payload.mode;
       }
     },
   );
@@ -608,7 +686,8 @@ const handleWindowClose = async (window: BrowserWindow): Promise<boolean> => {
   });
 };
 
-const createWindow = (initialDocument?: InitialDocument): BrowserWindow => {
+const createWindow = (options: CreateWindowOptions = {}): BrowserWindow => {
+  const { initialDocument, initialFolder } = options;
   const window = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -626,24 +705,27 @@ const createWindow = (initialDocument?: InitialDocument): BrowserWindow => {
   windows.set(window.id, {
     window,
     isDirty: false,
-    hasDocument: Boolean(initialDocument),
+    hasDocument: Boolean(initialDocument || initialFolder),
+    mode: initialFolder ? 'folder' : initialDocument ? 'single' : 'empty',
   });
 
-  const sendInitialDocument = (): void => {
+  const sendInitialPayload = (): void => {
     if (initialDocument) {
       window.webContents.send(IPC.WINDOW_INITIAL_DOCUMENT, initialDocument);
+    } else if (initialFolder) {
+      window.webContents.send(IPC.WINDOW_INITIAL_FOLDER, initialFolder);
     }
   };
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    void window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL).then(sendInitialDocument);
+    void window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL).then(sendInitialPayload);
     window.webContents.openDevTools();
   } else {
     void window
       .loadFile(
         path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
       )
-      .then(sendInitialDocument);
+      .then(sendInitialPayload);
   }
 
   window.on('close', async (event) => {
@@ -659,6 +741,7 @@ const createWindow = (initialDocument?: InitialDocument): BrowserWindow => {
   });
 
   window.on('closed', () => {
+    stopFolderWatch(window.webContents);
     windows.delete(window.id);
     pendingCloseResolves.delete(window.id);
   });

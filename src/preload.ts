@@ -1,9 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from './ipc/channels';
-import type { DiscardChoice, MenuAction } from './ipc/channels';
+import type { DiscardChoice, MenuAction, WindowMode } from './ipc/channels';
 import type {
   CopyImageResult,
+  FileTreeNode,
   OpenFileResult,
+  OpenFolderResult,
   QueuedImageCopy,
   SaveFileResult,
   StagedImageResult,
@@ -12,6 +14,21 @@ import type {
 contextBridge.exposeInMainWorld('electronAPI', {
   openFile: (): Promise<OpenFileResult | null> =>
     ipcRenderer.invoke(IPC.FILE_OPEN),
+
+  openFolder: (): Promise<OpenFolderResult | null> =>
+    ipcRenderer.invoke(IPC.FOLDER_OPEN),
+
+  readFolderTree: (dirPath: string): Promise<FileTreeNode> =>
+    ipcRenderer.invoke(IPC.FOLDER_READ_TREE, dirPath),
+
+  readFolderFile: (filePath: string): Promise<OpenFileResult> =>
+    ipcRenderer.invoke(IPC.FOLDER_READ_FILE, filePath),
+
+  startFolderWatch: (rootPath: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.FOLDER_WATCH_START, rootPath),
+
+  stopFolderWatch: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.FOLDER_WATCH_STOP),
 
   saveFile: (path: string, content: string): Promise<void> =>
     ipcRenderer.invoke(IPC.FILE_SAVE, path, content),
@@ -55,8 +72,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send(IPC.DOC_DIRTY_CHANGED, { dirty, title });
   },
 
-  setSessionState: (hasDocument: boolean): void => {
-    ipcRenderer.send(IPC.DOC_SESSION_CHANGED, { hasDocument });
+  setSessionState: (hasDocument: boolean, mode: WindowMode): void => {
+    ipcRenderer.send(IPC.DOC_SESSION_CHANGED, { hasDocument, mode });
   },
 
   confirmDiscardChanges: (): Promise<DiscardChoice> =>
@@ -106,6 +123,57 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC.WINDOW_INITIAL_DOCUMENT, listener);
     return () => {
       ipcRenderer.removeListener(IPC.WINDOW_INITIAL_DOCUMENT, listener);
+    };
+  },
+
+  onOpenFolder: (callback: (folder: OpenFolderResult) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      folder: OpenFolderResult,
+    ) => {
+      callback(folder);
+    };
+    ipcRenderer.on(IPC.WINDOW_OPEN_FOLDER, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.WINDOW_OPEN_FOLDER, listener);
+    };
+  },
+
+  onInitialFolder: (callback: (folder: OpenFolderResult) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      folder: OpenFolderResult,
+    ) => {
+      callback(folder);
+    };
+    ipcRenderer.on(IPC.WINDOW_INITIAL_FOLDER, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.WINDOW_INITIAL_FOLDER, listener);
+    };
+  },
+
+  onFolderChanged: (callback: () => void) => {
+    const listener = () => {
+      callback();
+    };
+    ipcRenderer.on(IPC.FOLDER_CHANGED, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.FOLDER_CHANGED, listener);
+    };
+  },
+
+  onFolderRenamed: (
+    callback: (payload: { oldPath: string; newPath: string }) => void,
+  ) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: { oldPath: string; newPath: string },
+    ) => {
+      callback(payload);
+    };
+    ipcRenderer.on(IPC.FOLDER_RENAMED, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC.FOLDER_RENAMED, listener);
     };
   },
 });

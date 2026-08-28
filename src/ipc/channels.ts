@@ -16,6 +16,15 @@ export const IPC = {
   DOC_ABORT_CLOSE: 'doc:abort-close',
   WINDOW_INITIAL_DOCUMENT: 'window:initial-document',
   WINDOW_OPEN_DOCUMENT: 'window:open-document',
+  WINDOW_INITIAL_FOLDER: 'window:initial-folder',
+  WINDOW_OPEN_FOLDER: 'window:open-folder',
+  FOLDER_OPEN: 'folder:open',
+  FOLDER_READ_TREE: 'folder:read-tree',
+  FOLDER_READ_FILE: 'folder:read-file',
+  FOLDER_WATCH_START: 'folder:watch-start',
+  FOLDER_WATCH_STOP: 'folder:watch-stop',
+  FOLDER_CHANGED: 'folder:changed',
+  FOLDER_RENAMED: 'folder:renamed',
   MENU_ACTION: 'menu:action',
   APP_BEFORE_CLOSE: 'app:before-close',
   APP_CLOSE_RESPONSE: 'app:close-response',
@@ -52,3 +61,5 @@ export type MenuAction =
   | 'format-code-snippet';
 
 export type DiscardChoice = 'save' | 'discard' | 'cancel';
+
+export type WindowMode = 'empty' | 'single' | 'folder';

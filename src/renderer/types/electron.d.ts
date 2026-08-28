@@ -1,8 +1,19 @@
-import type { DiscardChoice, MenuAction } from '../../ipc/channels';
+import type { DiscardChoice, MenuAction, WindowMode } from '../../ipc/channels';
 
 export interface OpenFileResult {
   path: string;
   content: string;
+}
+
+export interface OpenFolderResult {
+  rootPath: string;
+}
+
+export interface FileTreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: FileTreeNode[];
 }
 
 export interface SaveFileResult {
@@ -24,8 +35,18 @@ export interface QueuedImageCopy {
   relativePath: string;
 }
 
+export interface FolderRenamedPayload {
+  oldPath: string;
+  newPath: string;
+}
+
 export interface ElectronAPI {
   openFile: () => Promise<OpenFileResult | null>;
+  openFolder: () => Promise<OpenFolderResult | null>;
+  readFolderTree: (dirPath: string) => Promise<FileTreeNode>;
+  readFolderFile: (filePath: string) => Promise<OpenFileResult>;
+  startFolderWatch: (rootPath: string) => Promise<void>;
+  stopFolderWatch: () => Promise<void>;
   saveFile: (path: string, content: string) => Promise<void>;
   saveAs: (content: string) => Promise<SaveFileResult | null>;
   openImage: () => Promise<string | null>;
@@ -47,13 +68,19 @@ export interface ElectronAPI {
     html: string;
   }) => Promise<{ success: boolean }>;
   setDirty: (dirty: boolean, title: string) => void;
-  setSessionState: (hasDocument: boolean) => void;
+  setSessionState: (hasDocument: boolean, mode: WindowMode) => void;
   confirmDiscardChanges: () => Promise<DiscardChoice>;
   notifyReadyToClose: () => void;
   notifyAbortClose: () => void;
   onMenuAction: (callback: (action: MenuAction) => void) => () => void;
   onOpenDocument: (callback: (document: OpenFileResult) => void) => () => void;
   onInitialDocument: (callback: (document: OpenFileResult) => void) => () => void;
+  onOpenFolder: (callback: (folder: OpenFolderResult) => void) => () => void;
+  onInitialFolder: (callback: (folder: OpenFolderResult) => void) => () => void;
+  onFolderChanged: (callback: () => void) => () => void;
+  onFolderRenamed: (
+    callback: (payload: FolderRenamedPayload) => void,
+  ) => () => void;
 }
 
 declare global {

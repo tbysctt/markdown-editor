@@ -8,6 +8,7 @@ import {
   prepareMarkdownForSave,
   type QueuedImage,
 } from '../utils/markdown';
+import { confirmDiscardIfDirty } from '../utils/documentConfirm';
 
 export interface DocumentState {
   filePath: string | null;
@@ -19,26 +20,6 @@ export interface DocumentState {
 interface UseDocumentOptions {
   editor: Editor | null;
   onNavigateWelcome: () => void;
-}
-
-async function confirmDiscardIfDirty(
-  dirty: boolean,
-): Promise<'proceed' | 'cancel' | 'save'> {
-  if (!dirty) {
-    return 'proceed';
-  }
-
-  const choice = await window.electronAPI.confirmDiscardChanges();
-
-  if (choice === 'cancel') {
-    return 'cancel';
-  }
-
-  if (choice === 'discard') {
-    return 'proceed';
-  }
-
-  return 'save';
 }
 
 export function useDocument({ editor, onNavigateWelcome }: UseDocumentOptions) {
