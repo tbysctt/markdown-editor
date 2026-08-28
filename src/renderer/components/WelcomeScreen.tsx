@@ -10,7 +10,7 @@ export function WelcomeScreen({
   return (
     <div className="welcome-screen">
       <div className="welcome-card">
-        <h1>Markdown Editor</h1>
+        <h1>MDEditor</h1>
         <p>Create a new document or open an existing markdown file.</p>
         <div className="welcome-actions">
           <button type="button" className="welcome-button primary" onClick={onCreateNew}>

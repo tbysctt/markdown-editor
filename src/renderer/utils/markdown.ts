@@ -80,5 +80,5 @@ export function buildWindowTitle(
 ): string {
   const name = getFileName(filePath);
   const prefix = dirty ? '*' : '';
-  return `${prefix}${name} — Markdown Editor`;
+  return `${prefix}${name} — MDEditor`;
 }

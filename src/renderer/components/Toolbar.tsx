@@ -1,11 +1,20 @@
 import type { Editor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
+import { ListTypeDropdown } from './ListTypeDropdown';
+import { ToolbarIconButton } from './ToolbarIconButton';
+import {
+  CodeIcon,
+  ImageIcon,
+  LinkIcon,
+  TableIcon,
+} from './icons/ToolbarIcons';
 
 interface ToolbarProps {
   editor: Editor;
   onInsertLink: () => void;
   onInsertTable: () => void;
   onInsertImage: () => void;
+  onInsertCode: () => void;
 }
 
 type TextType =
@@ -49,6 +58,7 @@ export function Toolbar({
   onInsertLink,
   onInsertTable,
   onInsertImage,
+  onInsertCode,
 }: ToolbarProps) {
   const [, setRevision] = useState(0);
 
@@ -118,30 +128,7 @@ export function Toolbar({
       <div className="toolbar-divider" />
 
       <div className="toolbar-group">
-        <button
-          type="button"
-          className={editor.isActive('bulletList') ? 'active' : ''}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          title="Bulleted list"
-        >
-          • List
-        </button>
-        <button
-          type="button"
-          className={editor.isActive('orderedList') ? 'active' : ''}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          title="Numbered list"
-        >
-          1. List
-        </button>
-        <button
-          type="button"
-          className={editor.isActive('taskList') ? 'active' : ''}
-          onClick={() => editor.chain().focus().toggleTaskList().run()}
-          title="Task list"
-        >
-          ☑ Task
-        </button>
+        <ListTypeDropdown editor={editor} />
         <button
           type="button"
           className={editor.isActive('blockquote') ? 'active' : ''}
@@ -155,20 +142,26 @@ export function Toolbar({
       <div className="toolbar-divider" />
 
       <div className="toolbar-group">
-        <button
-          type="button"
-          className={editor.isActive('link') ? 'active' : ''}
+        <ToolbarIconButton
+          title="Insert link"
           onClick={onInsertLink}
-          title="Link"
+          active={editor.isActive('link')}
         >
-          Link
-        </button>
-        <button type="button" onClick={onInsertTable} title="Insert table">
-          Table
-        </button>
-        <button type="button" onClick={onInsertImage} title="Insert image">
-          Image
-        </button>
+          <LinkIcon />
+        </ToolbarIconButton>
+        <ToolbarIconButton title="Insert table" onClick={onInsertTable}>
+          <TableIcon />
+        </ToolbarIconButton>
+        <ToolbarIconButton title="Insert image" onClick={onInsertImage}>
+          <ImageIcon />
+        </ToolbarIconButton>
+        <ToolbarIconButton
+          title="Insert code snippet"
+          onClick={onInsertCode}
+          active={editor.isActive('codeBlock')}
+        >
+          <CodeIcon />
+        </ToolbarIconButton>
       </div>
     </div>
   );

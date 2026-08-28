@@ -1,8 +1,8 @@
 {
   "name": "markdown-editor",
-  "productName": "markdown-editor",
+  "productName": "MDEditor",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "A WYSIWYG markdown word processor",
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
@@ -41,6 +41,7 @@
     "vite": "^5.4.21"
   },
   "dependencies": {
+    "@tiptap/extension-code-block-lowlight": "^3.30.5",
     "@tiptap/extension-image": "^3.30.5",
     "@tiptap/extension-link": "^3.30.5",
     "@tiptap/extension-table": "^3.30.5",
@@ -54,6 +55,8 @@
     "@tiptap/react": "^3.30.5",
     "@tiptap/starter-kit": "^3.30.5",
     "electron-squirrel-startup": "^1.0.1",
+    "highlight.js": "^11.12.0",
+    "lowlight": "^3.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   }

@@ -11,29 +11,63 @@ import fs from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import started from 'electron-squirrel-startup';
 import { IPC } from './ipc/channels';
+import type { DiscardChoice } from './ipc/channels';
+import packageJson from '../package.json';
 
 if (started) {
   app.quit();
 }
 
-let mainWindow: BrowserWindow | null = null;
-let isDocumentDirty = false;
+const APP_NAME = 'MDEditor';
+
+interface WindowState {
+  window: BrowserWindow;
+  isDirty: boolean;
+  hasDocument: boolean;
+}
+
+interface InitialDocument {
+  path: string;
+  content: string;
+}
+
+const windows = new Map<number, WindowState>();
+const pendingCloseResolves = new Map<number, (value: boolean) => void>();
 let isQuitting = false;
-let pendingCloseResolve: ((value: boolean) => void) | null = null;
 
 const MARKDOWN_FILTERS = [
   { name: 'Markdown', extensions: ['md', 'markdown'] },
 ];
 
+const PDF_FILTERS = [{ name: 'PDF', extensions: ['pdf'] }];
+
 const IMAGE_FILTERS = [
   { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] },
 ];
 
-const getMainWindow = (): BrowserWindow => {
-  if (!mainWindow) {
-    throw new Error('Main window is not available');
+const getFocusedWindow = (): BrowserWindow => {
+  const focused = BrowserWindow.getFocusedWindow();
+  if (focused) {
+    return focused;
   }
-  return mainWindow;
+
+  const firstWindow = BrowserWindow.getAllWindows()[0];
+  if (firstWindow) {
+    return firstWindow;
+  }
+
+  throw new Error('No window is available');
+};
+
+const getWindowFromSender = (
+  sender: Electron.WebContents,
+): BrowserWindow | null => BrowserWindow.fromWebContents(sender);
+
+const getWindowState = (window: BrowserWindow): WindowState | undefined =>
+  windows.get(window.id);
+
+const sendMenuAction = (action: string): void => {
+  getFocusedWindow().webContents.send(IPC.MENU_ACTION, action);
 };
 
 const ensureAssetsDir = async (docPath: string): Promise<string> => {
@@ -48,16 +82,237 @@ const uniqueAssetName = (fileName: string): string => {
   return `${base}-${Date.now()}${ext}`;
 };
 
+const renderPrintableDocument = async (
+  html: string,
+): Promise<BrowserWindow> => {
+  const printWindow = new BrowserWindow({
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  await printWindow.loadURL(
+    `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
+  );
+
+  return printWindow;
+};
+
+const showDiscardDialog = async (
+  parentWindow: BrowserWindow,
+): Promise<DiscardChoice> => {
+  const { response } = await dialog.showMessageBox(parentWindow, {
+    type: 'warning',
+    buttons: ['Cancel', "Don't Save", 'Save'],
+    defaultId: 2,
+    cancelId: 0,
+    message: 'Do you want to save changes to this document?',
+  });
+
+  if (response === 0) {
+    return 'cancel';
+  }
+
+  if (response === 1) {
+    return 'discard';
+  }
+
+  return 'save';
+};
+
+const handleFileOpen = async (): Promise<void> => {
+  const focusedWindow = getFocusedWindow();
+  const state = getWindowState(focusedWindow);
+
+  const { canceled, filePaths } = await dialog.showOpenDialog(focusedWindow, {
+    properties: ['openFile'],
+    filters: MARKDOWN_FILTERS,
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return;
+  }
+
+  const filePath = filePaths[0];
+  const content = await fs.readFile(filePath, 'utf-8');
+  const document: InitialDocument = { path: filePath, content };
+
+  if (state?.hasDocument) {
+    createWindow(document);
+    return;
+  }
+
+  focusedWindow.webContents.send(IPC.WINDOW_OPEN_DOCUMENT, document);
+};
+
 const buildMenu = (): Menu => {
   const isMac = process.platform === 'darwin';
+
+  const fileSubmenu: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'New',
+      accelerator: 'CmdOrCtrl+N',
+      click: () => sendMenuAction('new'),
+    },
+    {
+      label: 'Open…',
+      accelerator: 'CmdOrCtrl+O',
+      click: () => {
+        void handleFileOpen();
+      },
+    },
+    {
+      label: 'Close',
+      accelerator: 'CmdOrCtrl+W',
+      click: () => sendMenuAction('close'),
+    },
+    { type: 'separator' },
+    {
+      label: 'Save',
+      accelerator: 'CmdOrCtrl+S',
+      click: () => sendMenuAction('save'),
+    },
+    {
+      label: 'Save As…',
+      accelerator: 'CmdOrCtrl+Shift+S',
+      click: () => sendMenuAction('save-as'),
+    },
+    { type: 'separator' },
+    {
+      label: 'Export as PDF…',
+      click: () => sendMenuAction('export-pdf'),
+    },
+    {
+      label: 'Print…',
+      accelerator: 'CmdOrCtrl+P',
+      click: () => sendMenuAction('print'),
+    },
+  ];
+
+  if (!isMac) {
+    fileSubmenu.push(
+      { type: 'separator' },
+      { role: 'quit', label: 'Quit MDEditor' },
+    );
+  }
+
+  const formatSubmenu: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Bold',
+      accelerator: 'CmdOrCtrl+B',
+      click: () => sendMenuAction('format-bold'),
+    },
+    {
+      label: 'Italic',
+      accelerator: 'CmdOrCtrl+I',
+      click: () => sendMenuAction('format-italic'),
+    },
+    {
+      label: 'Strikethrough',
+      accelerator: 'CmdOrCtrl+Shift+X',
+      click: () => sendMenuAction('format-strikethrough'),
+    },
+    { type: 'separator' },
+    {
+      label: 'Heading 1',
+      click: () => sendMenuAction('format-heading-1'),
+    },
+    {
+      label: 'Heading 2',
+      click: () => sendMenuAction('format-heading-2'),
+    },
+    {
+      label: 'Heading 3',
+      click: () => sendMenuAction('format-heading-3'),
+    },
+    {
+      label: 'Heading 4',
+      click: () => sendMenuAction('format-heading-4'),
+    },
+    {
+      label: 'Heading 5',
+      click: () => sendMenuAction('format-heading-5'),
+    },
+    {
+      label: 'Body Text',
+      click: () => sendMenuAction('format-body'),
+    },
+    { type: 'separator' },
+    {
+      label: 'Bulleted List',
+      click: () => sendMenuAction('format-bullet-list'),
+    },
+    {
+      label: 'Numbered List',
+      click: () => sendMenuAction('format-ordered-list'),
+    },
+    {
+      label: 'Task List',
+      click: () => sendMenuAction('format-task-list'),
+    },
+    {
+      label: 'Block Quote',
+      click: () => sendMenuAction('format-blockquote'),
+    },
+    { type: 'separator' },
+    {
+      label: 'Insert Link',
+      click: () => sendMenuAction('format-link'),
+    },
+    {
+      label: 'Insert Table',
+      click: () => sendMenuAction('format-table'),
+    },
+    {
+      label: 'Insert Image',
+      click: () => sendMenuAction('format-image'),
+    },
+    {
+      label: 'Insert Code Snippet',
+      click: () => sendMenuAction('format-code-snippet'),
+    },
+  ];
+
+  const viewSubmenu: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Zoom In',
+      accelerator: 'CmdOrCtrl+=',
+      click: () => sendMenuAction('zoom-in'),
+    },
+    {
+      label: 'Zoom Out',
+      accelerator: 'CmdOrCtrl+-',
+      click: () => sendMenuAction('zoom-out'),
+    },
+    {
+      label: 'Actual Size',
+      accelerator: 'CmdOrCtrl+0',
+      click: () => sendMenuAction('zoom-reset'),
+    },
+  ];
+
+  const showAbout = (): void => {
+    void dialog.showMessageBox(getFocusedWindow(), {
+      type: 'info',
+      title: `About ${APP_NAME}`,
+      message: APP_NAME,
+      detail: `Version ${packageJson.version}\n\nA WYSIWYG markdown word processor.`,
+      buttons: ['OK'],
+    });
+  };
 
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac
       ? [
           {
-            label: app.name,
+            label: APP_NAME,
             submenu: [
-              { role: 'about' as const },
+              {
+                label: `About ${APP_NAME}`,
+                click: showAbout,
+              },
               { type: 'separator' as const },
               { role: 'services' as const },
               { type: 'separator' as const },
@@ -70,35 +325,7 @@ const buildMenu = (): Menu => {
           },
         ]
       : []),
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'New',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => getMainWindow().webContents.send(IPC.MENU_ACTION, 'new'),
-        },
-        {
-          label: 'Open',
-          accelerator: 'CmdOrCtrl+O',
-          click: () => getMainWindow().webContents.send(IPC.MENU_ACTION, 'open'),
-        },
-        { type: 'separator' },
-        {
-          label: 'Save',
-          accelerator: 'CmdOrCtrl+S',
-          click: () => getMainWindow().webContents.send(IPC.MENU_ACTION, 'save'),
-        },
-        {
-          label: 'Save As',
-          accelerator: 'CmdOrCtrl+Shift+S',
-          click: () =>
-            getMainWindow().webContents.send(IPC.MENU_ACTION, 'save-as'),
-        },
-        { type: 'separator' },
-        isMac ? { role: 'close' } : { role: 'quit' },
-      ],
-    },
+    { label: 'File', submenu: fileSubmenu },
     {
       label: 'Edit',
       submenu: [
@@ -111,14 +338,30 @@ const buildMenu = (): Menu => {
         { role: 'selectAll' },
       ],
     },
+    { label: 'Format', submenu: formatSubmenu },
+    { label: 'View', submenu: viewSubmenu },
+    ...(!isMac
+      ? [
+          {
+            label: 'Help',
+            submenu: [
+              {
+                label: `About ${APP_NAME}`,
+                click: showAbout,
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   return Menu.buildFromTemplate(template);
 };
 
 const registerIpcHandlers = (): void => {
-  ipcMain.handle(IPC.FILE_OPEN, async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(getMainWindow(), {
+  ipcMain.handle(IPC.FILE_OPEN, async (event) => {
+    const parentWindow = getWindowFromSender(event.sender) ?? getFocusedWindow();
+    const { canceled, filePaths } = await dialog.showOpenDialog(parentWindow, {
       properties: ['openFile'],
       filters: MARKDOWN_FILTERS,
     });
@@ -139,8 +382,9 @@ const registerIpcHandlers = (): void => {
     },
   );
 
-  ipcMain.handle(IPC.FILE_SAVE_AS, async (_event, content: string) => {
-    const { canceled, filePath } = await dialog.showSaveDialog(getMainWindow(), {
+  ipcMain.handle(IPC.FILE_SAVE_AS, async (event, content: string) => {
+    const parentWindow = getWindowFromSender(event.sender) ?? getFocusedWindow();
+    const { canceled, filePath } = await dialog.showSaveDialog(parentWindow, {
       filters: MARKDOWN_FILTERS,
       defaultPath: 'Untitled.md',
     });
@@ -153,8 +397,9 @@ const registerIpcHandlers = (): void => {
     return { path: filePath };
   });
 
-  ipcMain.handle(IPC.FILE_OPEN_IMAGE, async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(getMainWindow(), {
+  ipcMain.handle(IPC.FILE_OPEN_IMAGE, async (event) => {
+    const parentWindow = getWindowFromSender(event.sender) ?? getFocusedWindow();
+    const { canceled, filePaths } = await dialog.showOpenDialog(parentWindow, {
       properties: ['openFile'],
       filters: IMAGE_FILTERS,
     });
@@ -178,7 +423,7 @@ const registerIpcHandlers = (): void => {
   );
 
   ipcMain.handle(IPC.FILE_STAGE_IMAGE, async (_event, sourcePath: string) => {
-    const tempDir = path.join(app.getPath('temp'), 'markdown-editor-assets');
+    const tempDir = path.join(app.getPath('temp'), 'mdeditor-assets');
     await fs.mkdir(tempDir, { recursive: true });
     const fileName = uniqueAssetName(path.basename(sourcePath));
     const destPath = path.join(tempDir, fileName);
@@ -222,59 +467,154 @@ const registerIpcHandlers = (): void => {
     },
   );
 
-  ipcMain.on(
-    IPC.DOC_DIRTY_CHANGED,
-    (_event, payload: { dirty: boolean; title: string }) => {
-      isDocumentDirty = payload.dirty;
-      getMainWindow().setTitle(payload.title);
+  ipcMain.handle(
+    IPC.EXPORT_PDF,
+    async (event, payload: { html: string; defaultFileName: string }) => {
+      const parentWindow = getWindowFromSender(event.sender) ?? getFocusedWindow();
+      const { canceled, filePath } = await dialog.showSaveDialog(parentWindow, {
+        filters: PDF_FILTERS,
+        defaultPath: payload.defaultFileName,
+      });
+
+      if (canceled || !filePath) {
+        return { success: false };
+      }
+
+      const printWindow = await renderPrintableDocument(payload.html);
+      try {
+        const pdfBuffer = await printWindow.webContents.printToPDF({
+          printBackground: true,
+        });
+        await fs.writeFile(filePath, pdfBuffer);
+        return { success: true, path: filePath };
+      } finally {
+        printWindow.destroy();
+      }
     },
   );
 
-  ipcMain.on(IPC.DOC_READY_TO_CLOSE, () => {
-    pendingCloseResolve?.(true);
-    pendingCloseResolve = null;
+  ipcMain.handle(
+    IPC.PRINT_DOCUMENT,
+    async (_event, payload: { html: string }) => {
+      const printWindow = await renderPrintableDocument(payload.html);
+      try {
+        await new Promise<void>((resolve, reject) => {
+          printWindow.webContents.print(
+            { silent: false, printBackground: true },
+            (success, failureReason) => {
+              if (success) {
+                resolve();
+              } else {
+                reject(new Error(failureReason));
+              }
+            },
+          );
+        });
+        return { success: true };
+      } catch {
+        return { success: false };
+      } finally {
+        printWindow.destroy();
+      }
+    },
+  );
+
+  ipcMain.handle(IPC.DOC_CONFIRM_DISCARD, async (event) => {
+    const window = getWindowFromSender(event.sender);
+    if (!window) {
+      return 'cancel' as DiscardChoice;
+    }
+
+    const state = getWindowState(window);
+    if (!state?.isDirty) {
+      return 'discard' as DiscardChoice;
+    }
+
+    return showDiscardDialog(window);
   });
 
-  ipcMain.on(IPC.DOC_ABORT_CLOSE, () => {
-    pendingCloseResolve?.(false);
-    pendingCloseResolve = null;
+  ipcMain.on(
+    IPC.DOC_DIRTY_CHANGED,
+    (event, payload: { dirty: boolean; title: string }) => {
+      const window = getWindowFromSender(event.sender);
+      if (!window) {
+        return;
+      }
+
+      const state = getWindowState(window);
+      if (state) {
+        state.isDirty = payload.dirty;
+      }
+
+      window.setTitle(payload.title);
+    },
+  );
+
+  ipcMain.on(
+    IPC.DOC_SESSION_CHANGED,
+    (event, payload: { hasDocument: boolean }) => {
+      const window = getWindowFromSender(event.sender);
+      if (!window) {
+        return;
+      }
+
+      const state = getWindowState(window);
+      if (state) {
+        state.hasDocument = payload.hasDocument;
+      }
+    },
+  );
+
+  ipcMain.on(IPC.DOC_READY_TO_CLOSE, (event) => {
+    const window = getWindowFromSender(event.sender);
+    if (!window) {
+      return;
+    }
+
+    pendingCloseResolves.get(window.id)?.(true);
+    pendingCloseResolves.delete(window.id);
+  });
+
+  ipcMain.on(IPC.DOC_ABORT_CLOSE, (event) => {
+    const window = getWindowFromSender(event.sender);
+    if (!window) {
+      return;
+    }
+
+    pendingCloseResolves.get(window.id)?.(false);
+    pendingCloseResolves.delete(window.id);
   });
 };
 
-const handleWindowClose = async (): Promise<boolean> => {
-  if (!isDocumentDirty) {
+const handleWindowClose = async (window: BrowserWindow): Promise<boolean> => {
+  const state = getWindowState(window);
+  if (!state?.isDirty) {
     return true;
   }
 
-  const { response } = await dialog.showMessageBox(getMainWindow(), {
-    type: 'warning',
-    buttons: ['Cancel', "Don't Save", 'Save'],
-    defaultId: 2,
-    cancelId: 0,
-    message: 'Do you want to save changes to this document?',
-  });
+  const choice = await showDiscardDialog(window);
 
-  if (response === 0) {
+  if (choice === 'cancel') {
     return false;
   }
 
-  if (response === 1) {
+  if (choice === 'discard') {
     return true;
   }
 
   return new Promise((resolve) => {
-    pendingCloseResolve = resolve;
-    getMainWindow().webContents.send(IPC.MENU_ACTION, 'save-and-close');
+    pendingCloseResolves.set(window.id, resolve);
+    window.webContents.send(IPC.MENU_ACTION, 'save-and-close');
   });
 };
 
-const createWindow = (): void => {
-  mainWindow = new BrowserWindow({
+const createWindow = (initialDocument?: InitialDocument): BrowserWindow => {
+  const window = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: 'Markdown Editor',
+    title: APP_NAME,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -283,34 +623,51 @@ const createWindow = (): void => {
     },
   });
 
+  windows.set(window.id, {
+    window,
+    isDirty: false,
+    hasDocument: Boolean(initialDocument),
+  });
+
+  const sendInitialDocument = (): void => {
+    if (initialDocument) {
+      window.webContents.send(IPC.WINDOW_INITIAL_DOCUMENT, initialDocument);
+    }
+  };
+
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
+    void window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL).then(sendInitialDocument);
+    window.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
+    void window
+      .loadFile(
+        path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      )
+      .then(sendInitialDocument);
   }
 
-  mainWindow.on('close', async (event) => {
+  window.on('close', async (event) => {
     if (isQuitting) {
       return;
     }
 
     event.preventDefault();
-    const canClose = await handleWindowClose();
+    const canClose = await handleWindowClose(window);
     if (canClose) {
-      isQuitting = true;
-      mainWindow?.destroy();
+      window.destroy();
     }
   });
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  window.on('closed', () => {
+    windows.delete(window.id);
+    pendingCloseResolves.delete(window.id);
   });
+
+  return window;
 };
 
 app.on('ready', () => {
+  app.setName(APP_NAME);
   Menu.setApplicationMenu(buildMenu());
   registerIpcHandlers();
   createWindow();
@@ -333,7 +690,6 @@ app.on('before-quit', () => {
   isQuitting = true;
 });
 
-// Allow opening local asset images in the editor via file:// paths
 app.on('web-contents-created', (_event, contents) => {
   contents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {

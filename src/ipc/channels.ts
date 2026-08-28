@@ -7,12 +7,48 @@ export const IPC = {
   FILE_STAGE_IMAGE: 'file:stage-image',
   FILE_COPY_QUEUED_IMAGES: 'file:copy-queued-images',
   FILE_RESOLVE_ASSET_URL: 'file:resolve-asset-url',
+  EXPORT_PDF: 'export:pdf',
+  PRINT_DOCUMENT: 'print:document',
   DOC_DIRTY_CHANGED: 'doc:dirty-changed',
+  DOC_SESSION_CHANGED: 'doc:session-changed',
+  DOC_CONFIRM_DISCARD: 'doc:confirm-discard',
   DOC_READY_TO_CLOSE: 'doc:ready-to-close',
   DOC_ABORT_CLOSE: 'doc:abort-close',
+  WINDOW_INITIAL_DOCUMENT: 'window:initial-document',
+  WINDOW_OPEN_DOCUMENT: 'window:open-document',
   MENU_ACTION: 'menu:action',
   APP_BEFORE_CLOSE: 'app:before-close',
   APP_CLOSE_RESPONSE: 'app:close-response',
 } as const;
 
-export type MenuAction = 'new' | 'open' | 'save' | 'save-as' | 'save-and-close';
+export type MenuAction =
+  | 'new'
+  | 'open'
+  | 'close'
+  | 'save'
+  | 'save-as'
+  | 'save-and-close'
+  | 'export-pdf'
+  | 'print'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'zoom-reset'
+  | 'format-bold'
+  | 'format-italic'
+  | 'format-strikethrough'
+  | 'format-heading-1'
+  | 'format-heading-2'
+  | 'format-heading-3'
+  | 'format-heading-4'
+  | 'format-heading-5'
+  | 'format-body'
+  | 'format-bullet-list'
+  | 'format-ordered-list'
+  | 'format-task-list'
+  | 'format-blockquote'
+  | 'format-link'
+  | 'format-table'
+  | 'format-image'
+  | 'format-code-snippet';
+
+export type DiscardChoice = 'save' | 'discard' | 'cancel';

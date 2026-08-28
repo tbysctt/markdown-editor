@@ -21,6 +21,26 @@ interface UseDocumentOptions {
   onNavigateWelcome: () => void;
 }
 
+async function confirmDiscardIfDirty(
+  dirty: boolean,
+): Promise<'proceed' | 'cancel' | 'save'> {
+  if (!dirty) {
+    return 'proceed';
+  }
+
+  const choice = await window.electronAPI.confirmDiscardChanges();
+
+  if (choice === 'cancel') {
+    return 'cancel';
+  }
+
+  if (choice === 'discard') {
+    return 'proceed';
+  }
+
+  return 'save';
+}
+
 export function useDocument({ editor, onNavigateWelcome }: UseDocumentOptions) {
   const [filePath, setFilePath] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -161,32 +181,37 @@ export function useDocument({ editor, onNavigateWelcome }: UseDocumentOptions) {
     return true;
   }, [editor, getMarkdownContent, markClean, queuedImages]);
 
-  const openDocument = useCallback(async (): Promise<boolean> => {
-    const result = await window.electronAPI.openFile();
-    if (!result) {
-      return false;
+  const requestNewDocument = useCallback(async () => {
+    const result = await confirmDiscardIfDirty(dirty);
+    if (result === 'cancel') {
+      return;
     }
 
-    await loadContent(result.content, result.path);
-    return true;
-  }, [loadContent]);
-
-  const createNewDocument = useCallback(async () => {
-    await loadContent('', null);
-  }, [loadContent]);
-
-  const requestNewDocument = useCallback(async () => {
-    if (dirty) {
-      const shouldDiscard = window.confirm(
-        'You have unsaved changes. Discard them and create a new document?',
-      );
-      if (!shouldDiscard) {
+    if (result === 'save') {
+      const saved = await saveDocument();
+      if (!saved) {
         return;
       }
     }
 
     onNavigateWelcome();
-  }, [dirty, onNavigateWelcome]);
+  }, [dirty, onNavigateWelcome, saveDocument]);
+
+  const requestCloseDocument = useCallback(async () => {
+    const result = await confirmDiscardIfDirty(dirty);
+    if (result === 'cancel') {
+      return;
+    }
+
+    if (result === 'save') {
+      const saved = await saveDocument();
+      if (!saved) {
+        return;
+      }
+    }
+
+    onNavigateWelcome();
+  }, [dirty, onNavigateWelcome, saveDocument]);
 
   const addQueuedImage = useCallback((image: QueuedImage) => {
     setQueuedImages((current) => [...current, image]);
@@ -204,18 +229,6 @@ export function useDocument({ editor, onNavigateWelcome }: UseDocumentOptions) {
           case 'new':
             await requestNewDocument();
             break;
-          case 'open': {
-            if (dirty) {
-              const shouldDiscard = window.confirm(
-                'You have unsaved changes. Discard them and open another file?',
-              );
-              if (!shouldDiscard) {
-                return;
-              }
-            }
-            await openDocument();
-            break;
-          }
           case 'save':
             await saveDocument();
             break;
@@ -231,6 +244,9 @@ export function useDocument({ editor, onNavigateWelcome }: UseDocumentOptions) {
             }
             break;
           }
+          case 'close':
+            await requestCloseDocument();
+            break;
           default:
             break;
         }
@@ -239,8 +255,7 @@ export function useDocument({ editor, onNavigateWelcome }: UseDocumentOptions) {
 
     return unsubscribe;
   }, [
-    dirty,
-    openDocument,
+    requestCloseDocument,
     requestNewDocument,
     saveAsDocument,
     saveDocument,
@@ -254,10 +269,9 @@ export function useDocument({ editor, onNavigateWelcome }: UseDocumentOptions) {
     markDirty,
     markClean,
     loadContent,
-    createNewDocument,
-    openDocument,
     saveDocument,
     saveAsDocument,
     addQueuedImage,
+    requestCloseDocument,
   };
 }

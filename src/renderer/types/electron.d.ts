@@ -1,4 +1,4 @@
-import type { MenuAction } from '../../ipc/channels';
+import type { DiscardChoice, MenuAction } from '../../ipc/channels';
 
 export interface OpenFileResult {
   path: string;
@@ -39,10 +39,21 @@ export interface ElectronAPI {
     docPath: string,
     images: QueuedImageCopy[],
   ) => Promise<QueuedImageCopy[]>;
+  exportPdf: (payload: {
+    html: string;
+    defaultFileName: string;
+  }) => Promise<{ success: boolean; path?: string }>;
+  printDocument: (payload: {
+    html: string;
+  }) => Promise<{ success: boolean }>;
   setDirty: (dirty: boolean, title: string) => void;
+  setSessionState: (hasDocument: boolean) => void;
+  confirmDiscardChanges: () => Promise<DiscardChoice>;
   notifyReadyToClose: () => void;
   notifyAbortClose: () => void;
   onMenuAction: (callback: (action: MenuAction) => void) => () => void;
+  onOpenDocument: (callback: (document: OpenFileResult) => void) => () => void;
+  onInitialDocument: (callback: (document: OpenFileResult) => void) => () => void;
 }
 
 declare global {

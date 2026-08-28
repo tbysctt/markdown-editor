@@ -33,6 +33,25 @@ export function App() {
   };
 
   useEffect(() => {
+    window.electronAPI.setSessionState(view === 'editor');
+  }, [view]);
+
+  useEffect(() => {
+    const unsubscribeInitial = window.electronAPI.onInitialDocument((document) => {
+      openEditor(document.content, document.path);
+    });
+
+    const unsubscribeOpen = window.electronAPI.onOpenDocument((document) => {
+      openEditor(document.content, document.path);
+    });
+
+    return () => {
+      unsubscribeInitial();
+      unsubscribeOpen();
+    };
+  }, []);
+
+  useEffect(() => {
     return window.electronAPI.onMenuAction((action) => {
       if (view !== 'welcome') {
         return;
@@ -40,10 +59,6 @@ export function App() {
 
       if (action === 'new') {
         handleCreateNew();
-      }
-
-      if (action === 'open') {
-        void handleOpenExisting();
       }
     });
   }, [view]);
