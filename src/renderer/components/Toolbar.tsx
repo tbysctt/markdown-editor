@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
+import { AlertTypeDropdown } from './AlertTypeDropdown';
 import { ListTypeDropdown } from './ListTypeDropdown';
 import { ToolbarIconButton } from './ToolbarIconButton';
 import {
@@ -140,6 +141,7 @@ export function Toolbar({
         >
           “ Quote
         </button>
+        <AlertTypeDropdown editor={editor} />
       </div>
 
       <div className="toolbar-divider" />

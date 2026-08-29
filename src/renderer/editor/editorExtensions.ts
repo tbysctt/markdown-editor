@@ -8,6 +8,7 @@ import { TableKit } from '@tiptap/extension-table';
 import { CharacterCount } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
 import type { Extensions } from '@tiptap/react';
+import { AlertExtension } from '../extensions/alertExtension';
 import { CodeBlockExtension } from '../extensions/codeBlockExtension';
 import { MathExtension } from '../extensions/mathExtension';
 
@@ -19,6 +20,7 @@ export function createEditorExtensions(): Extensions {
     }),
     CodeBlockExtension,
     MathExtension,
+    AlertExtension,
     Link.configure({
       openOnClick: false,
       autolink: true,
