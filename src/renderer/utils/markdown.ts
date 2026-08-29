@@ -1,6 +1,5 @@
 import { APP_NAME } from '../../shared/appMeta';
-
-const IMAGE_MARKDOWN_REGEX = /!\[([^\]]*)\]\(([^)]+)\)/g;
+import { normalizeImageSrcForSave } from './assetUrl';
 
 export interface QueuedImage {
   tempPath: string;
@@ -10,26 +9,8 @@ export interface QueuedImage {
 
 export async function prepareMarkdownForEditor(
   markdown: string,
-  docPath: string,
 ): Promise<string> {
-  const matches = [...markdown.matchAll(IMAGE_MARKDOWN_REGEX)];
-  let result = markdown;
-
-  for (const match of matches) {
-    const src = match[2];
-    if (
-      src.startsWith('http://') ||
-      src.startsWith('https://') ||
-      src.startsWith('file://')
-    ) {
-      continue;
-    }
-
-    const fileUrl = await window.electronAPI.resolveAssetUrl(docPath, src);
-    result = result.replace(`](${src})`, `](${fileUrl})`);
-  }
-
-  return result;
+  return markdown;
 }
 
 export function prepareMarkdownForSave(
@@ -43,24 +24,13 @@ export function prepareMarkdownForSave(
   }
 
   result = result.replace(
-    /!\[([^\]]*)\]\(file:\/\/[^)]+\)/g,
-    (match, alt: string) => {
-      const fileUrl = match.match(/\((file:\/\/[^)]+)\)/)?.[1];
-      if (!fileUrl) {
+    /!\[([^\]]*)\]\(([^)]+)\)/g,
+    (match, alt: string, src: string) => {
+      const normalized = normalizeImageSrcForSave(src);
+      if (normalized === src) {
         return match;
       }
-
-      const queued = queuedImages.find((image) => image.fileUrl === fileUrl);
-      if (queued) {
-        return `![${alt}](${queued.relativePath})`;
-      }
-
-      const assetsMatch = fileUrl.match(/assets\/[^/]+$/);
-      if (assetsMatch) {
-        return `![${alt}](${assetsMatch[0]})`;
-      }
-
-      return match;
+      return `![${alt}](${normalized})`;
     },
   );
 

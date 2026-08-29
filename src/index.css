@@ -636,6 +636,58 @@ button {
   margin: 0.5rem 0;
 }
 
+.image-view {
+  margin: 0.5rem 0;
+}
+
+.image-view img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.image-view--broken {
+  margin: 0.5rem 0;
+}
+
+.image-view__broken-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #991b1b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.image-view__broken-button:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.image-view__broken-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.image-view__path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  color: #7f1d1d;
+  word-break: break-all;
+}
+
+.image-view__broken-hint {
+  font-size: 0.75rem;
+  color: #b91c1c;
+}
+
 .editor-content table {
   width: 100%;
   border-collapse: collapse;

@@ -1,7 +1,8 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { IPC } from './ipc/channels';
 import type { DiscardChoice, DeleteConfirmChoice, MenuAction, WindowMode } from './ipc/channels';
 import type {
+  ClipboardImageResult,
   CopyImageResult,
   FileTreeNode,
   OpenFileResult,
@@ -95,6 +96,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
     images: QueuedImageCopy[],
   ): Promise<QueuedImageCopy[]> =>
     ipcRenderer.invoke(IPC.FILE_COPY_QUEUED_IMAGES, docPath, images),
+
+  saveClipboardImage: (
+    docPath: string | null,
+  ): Promise<ClipboardImageResult | null> =>
+    ipcRenderer.invoke(IPC.FILE_SAVE_CLIPBOARD_IMAGE, docPath),
+
+  saveImageBytes: (payload: {
+    bytes: ArrayBuffer;
+    fileName: string;
+    docPath: string | null;
+  }): Promise<StagedImageResult | ClipboardImageResult> =>
+    ipcRenderer.invoke(IPC.FILE_SAVE_IMAGE_BYTES, payload),
+
+  resolveAbsoluteAssetUrl: (absolutePath: string): Promise<string> =>
+    ipcRenderer.invoke(IPC.FILE_RESOLVE_ABSOLUTE_ASSET_URL, absolutePath),
+
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
   exportPdf: (payload: {
     html: string;

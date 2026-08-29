@@ -93,6 +93,20 @@ const PRINT_STYLES = `
   }
   a { color: #2563eb; text-decoration: underline; }
   img { max-width: 100%; height: auto; }
+  .image-view--broken {
+    margin: 0.5rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px dashed #d1d5db;
+    border-radius: 4px;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 10pt;
+  }
+  .image-view__path {
+    font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+    font-size: 9pt;
+    word-break: break-all;
+  }
   table { width: 100%; border-collapse: collapse; margin: 0 0 0.75rem; }
   th, td { border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; vertical-align: top; }
   th { background: #f3f4f6; font-weight: 600; text-align: left; }

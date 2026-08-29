@@ -1,9 +1,12 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   Menu,
+  net,
+  protocol,
   shell,
 } from 'electron';
 import path from 'node:path';
@@ -69,6 +72,33 @@ const IMAGE_FILTERS = [
   { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] },
 ];
 
+const ASSETS_DIR_NAME = 'assets';
+const ASSET_PROTOCOL = 'notebook-asset';
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: ASSET_PROTOCOL,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
+
+const toAssetProtocolUrl = (absolutePath: string): string =>
+  `${ASSET_PROTOCOL}://asset/${encodeURIComponent(absolutePath)}`;
+
+const registerAssetProtocol = (): void => {
+  protocol.handle(ASSET_PROTOCOL, (request) => {
+    const parsed = new URL(request.url);
+    const absolutePath = decodeURIComponent(parsed.pathname.slice(1));
+    return net.fetch(pathToFileURL(absolutePath).href);
+  });
+};
+
 const getFocusedWindow = (): BrowserWindow => {
   const focused = BrowserWindow.getFocusedWindow();
   if (focused) {
@@ -95,9 +125,27 @@ const sendMenuAction = (action: string): void => {
 };
 
 const ensureAssetsDir = async (docPath: string): Promise<string> => {
-  const assetsDir = path.join(path.dirname(docPath), 'assets');
+  const assetsDir = path.join(path.dirname(docPath), ASSETS_DIR_NAME);
   await fs.mkdir(assetsDir, { recursive: true });
   return assetsDir;
+};
+
+const assetsRelativePath = (fileName: string): string =>
+  `${ASSETS_DIR_NAME}/${fileName}`;
+
+const pastedImageFileName = (): string => {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const timestamp = [
+    now.getFullYear(),
+    pad(now.getMonth() + 1),
+    pad(now.getDate()),
+    pad(now.getHours()),
+    pad(now.getMinutes()),
+    pad(now.getSeconds()),
+  ].join('');
+
+  return `Pasted image ${timestamp}.png`;
 };
 
 const uniqueAssetName = (fileName: string): string => {
@@ -618,7 +666,7 @@ const registerIpcHandlers = (): void => {
       const fileName = uniqueAssetName(path.basename(sourcePath));
       const destPath = path.join(assetsDir, fileName);
       await fs.copyFile(sourcePath, destPath);
-      return { relativePath: `assets/${fileName}` };
+      return { relativePath: assetsRelativePath(fileName) };
     },
   );
 
@@ -630,8 +678,8 @@ const registerIpcHandlers = (): void => {
     await fs.copyFile(sourcePath, destPath);
     return {
       tempPath: destPath,
-      relativePath: `assets/${fileName}`,
-      fileUrl: pathToFileURL(destPath).href,
+      relativePath: assetsRelativePath(fileName),
+      fileUrl: toAssetProtocolUrl(destPath),
     };
   });
 
@@ -639,8 +687,13 @@ const registerIpcHandlers = (): void => {
     IPC.FILE_RESOLVE_ASSET_URL,
     (_event, docPath: string, relativePath: string) => {
       const absolutePath = path.join(path.dirname(docPath), relativePath);
-      return pathToFileURL(absolutePath).href;
+      return toAssetProtocolUrl(absolutePath);
     },
+  );
+
+  ipcMain.handle(
+    IPC.FILE_RESOLVE_ABSOLUTE_ASSET_URL,
+    (_event, absolutePath: string) => toAssetProtocolUrl(absolutePath),
   );
 
   ipcMain.handle(
@@ -659,11 +712,76 @@ const registerIpcHandlers = (): void => {
         await fs.copyFile(image.tempPath, destPath);
         results.push({
           tempPath: image.tempPath,
-          relativePath: `assets/${fileName}`,
+          relativePath: assetsRelativePath(fileName),
         });
       }
 
       return results;
+    },
+  );
+
+  ipcMain.handle(
+    IPC.FILE_SAVE_CLIPBOARD_IMAGE,
+    async (_event, docPath: string | null) => {
+      const image = clipboard.readImage();
+      if (image.isEmpty()) {
+        return null;
+      }
+
+      const fileName = pastedImageFileName();
+      const pngBuffer = image.toPNG();
+
+      if (!docPath) {
+        const tempDir = path.join(app.getPath('temp'), 'notebook-assets');
+        await fs.mkdir(tempDir, { recursive: true });
+        const destPath = path.join(tempDir, fileName);
+        await fs.writeFile(destPath, pngBuffer);
+        return {
+          tempPath: destPath,
+          relativePath: assetsRelativePath(fileName),
+          fileUrl: toAssetProtocolUrl(destPath),
+        };
+      }
+
+      const assetsDir = await ensureAssetsDir(docPath);
+      const destPath = path.join(assetsDir, fileName);
+      await fs.writeFile(destPath, pngBuffer);
+      return {
+        relativePath: assetsRelativePath(fileName),
+        fileUrl: toAssetProtocolUrl(destPath),
+      };
+    },
+  );
+
+  ipcMain.handle(
+    IPC.FILE_SAVE_IMAGE_BYTES,
+    async (
+      _event,
+      payload: { bytes: ArrayBuffer; fileName: string; docPath: string | null },
+    ) => {
+      const { bytes, fileName, docPath } = payload;
+      const buffer = Buffer.from(bytes);
+      const resolvedName = uniqueAssetName(fileName || 'pasted-image.png');
+
+      if (!docPath) {
+        const tempDir = path.join(app.getPath('temp'), 'notebook-assets');
+        await fs.mkdir(tempDir, { recursive: true });
+        const destPath = path.join(tempDir, resolvedName);
+        await fs.writeFile(destPath, buffer);
+        return {
+          tempPath: destPath,
+          relativePath: assetsRelativePath(resolvedName),
+          fileUrl: toAssetProtocolUrl(destPath),
+        };
+      }
+
+      const assetsDir = await ensureAssetsDir(docPath);
+      const destPath = path.join(assetsDir, resolvedName);
+      await fs.writeFile(destPath, buffer);
+      return {
+        relativePath: assetsRelativePath(resolvedName),
+        fileUrl: toAssetProtocolUrl(destPath),
+      };
     },
   );
 
@@ -882,6 +1000,7 @@ const createWindow = (options: CreateWindowOptions = {}): BrowserWindow => {
 };
 
 app.on('ready', () => {
+  registerAssetProtocol();
   app.setName(APP_NAME);
   Menu.setApplicationMenu(buildMenu());
   registerIpcHandlers();

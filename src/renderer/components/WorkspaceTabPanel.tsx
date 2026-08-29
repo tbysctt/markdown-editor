@@ -1,5 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MenuAction } from '../../ipc/channels';
 import { Toolbar } from './Toolbar';
 import { FindBar } from './FindBar';
@@ -12,12 +12,25 @@ import {
   DEFAULT_MATH_LATEX,
   setBlockMathClickHandler,
 } from '../extensions/mathExtension';
+import {
+  setImageDocPathProvider,
+  setImageRepairContext,
+  setImageSrcResolver,
+} from '../extensions/imageExtension';
 import { editorProps } from '../editor/editorConfig';
 import { useTabDocument } from '../hooks/useTabDocument';
 import { getPrintableHtml } from '../utils/print';
-import { getFileName, prepareMarkdownForEditor } from '../utils/markdown';
+import { getFileName, prepareMarkdownForEditor, type QueuedImage } from '../utils/markdown';
+import {
+  getImageFileFromFileList,
+  insertImageFromSavedResult,
+  insertImageFromSource,
+  resolveImageSrcForDisplay,
+} from '../utils/insertImage';
 import type { EditorTab, TabEditorHandle } from '../types/workspace';
 import { isUntitledPath } from '../types/workspace';
+import type { Editor } from '@tiptap/react';
+import type { EditorView } from '@tiptap/pm/view';
 
 export interface WorkspaceTabPanelHandle {
   runMenuAction: (action: MenuAction) => boolean;
@@ -63,8 +76,168 @@ export function WorkspaceTabPanel({
   const markDirtyRef = useRef<(() => void) | null>(null);
   const loadedEpochRef = useRef(-1);
   const dirtyRef = useRef(tab.dirty);
+  const editorRef = useRef<Editor | null>(null);
+  const imageContextRef = useRef<{
+    docPath: string;
+    addQueuedImage: ((image: QueuedImage) => void) | null;
+    markDirty: (() => void) | null;
+    queuedImages: QueuedImage[];
+  }>({
+    docPath: tab.filePath,
+    addQueuedImage: null,
+    markDirty: null,
+    queuedImages: [],
+  });
 
   dirtyRef.current = tab.dirty;
+
+  const imageEditorProps = useMemo(
+    () => ({
+      ...editorProps,
+      handleDrop: (
+        view: EditorView,
+        event: DragEvent,
+        _slice: unknown,
+        moved: boolean,
+      ) => {
+        if (moved) {
+          return false;
+        }
+
+        const imageFile = getImageFileFromFileList(
+          event.dataTransfer?.files ?? [],
+        );
+        if (!imageFile) {
+          return false;
+        }
+
+        const editor = editorRef.current;
+        if (!editor) {
+          return false;
+        }
+
+        event.preventDefault();
+
+        const coords = view.posAtCoords({
+          left: event.clientX,
+          top: event.clientY,
+        });
+        const ctx = imageContextRef.current;
+        const addQueuedImage = ctx.addQueuedImage;
+        const markDirtyFn = ctx.markDirty;
+        if (!addQueuedImage || !markDirtyFn) {
+          return false;
+        }
+
+        const sourcePath = window.electronAPI.getPathForFile(imageFile);
+        if (sourcePath) {
+          void insertImageFromSource({
+            editor,
+            docPath: ctx.docPath,
+            sourcePath,
+            addQueuedImage,
+            markDirty: markDirtyFn,
+            insertPos: coords?.pos,
+          });
+          return true;
+        }
+
+        void (async () => {
+          const bytes = await imageFile.arrayBuffer();
+          const docPath = isUntitledPath(ctx.docPath) ? null : ctx.docPath;
+          const result = await window.electronAPI.saveImageBytes({
+            bytes,
+            fileName: imageFile.name || 'dropped-image.png',
+            docPath,
+          });
+          await insertImageFromSavedResult(
+            editor,
+            ctx.docPath,
+            result,
+            addQueuedImage,
+            markDirtyFn,
+            coords?.pos,
+          );
+        })();
+
+        return true;
+      },
+      handlePaste: (_view: EditorView, event: ClipboardEvent) => {
+        const editor = editorRef.current;
+        if (!editor || !event.clipboardData) {
+          return false;
+        }
+
+        const ctx = imageContextRef.current;
+        const addQueuedImage = ctx.addQueuedImage;
+        const markDirtyFn = ctx.markDirty;
+        if (!addQueuedImage || !markDirtyFn) {
+          return false;
+        }
+
+        const plainText = event.clipboardData.getData('text/plain').trim();
+        const imageFile = getImageFileFromFileList(event.clipboardData.files);
+
+        const insertFromFile = async (file: File) => {
+          const sourcePath = window.electronAPI.getPathForFile(file);
+          if (sourcePath) {
+            await insertImageFromSource({
+              editor,
+              docPath: ctx.docPath,
+              sourcePath,
+              addQueuedImage,
+              markDirty: markDirtyFn,
+            });
+            return;
+          }
+
+          const bytes = await file.arrayBuffer();
+          const docPath = isUntitledPath(ctx.docPath) ? null : ctx.docPath;
+          const result = await window.electronAPI.saveImageBytes({
+            bytes,
+            fileName: file.name || 'pasted-image.png',
+            docPath,
+          });
+          await insertImageFromSavedResult(
+            editor,
+            ctx.docPath,
+            result,
+            addQueuedImage,
+            markDirtyFn,
+          );
+        };
+
+        if (imageFile) {
+          event.preventDefault();
+          void insertFromFile(imageFile);
+          return true;
+        }
+
+        if (!plainText) {
+          event.preventDefault();
+          void (async () => {
+            const docPath = isUntitledPath(ctx.docPath) ? null : ctx.docPath;
+            const result = await window.electronAPI.saveClipboardImage(docPath);
+            if (!result) {
+              return;
+            }
+
+            await insertImageFromSavedResult(
+              editor,
+              ctx.docPath,
+              result,
+              addQueuedImage,
+              markDirtyFn,
+            );
+          })();
+          return true;
+        }
+
+        return false;
+      },
+    }),
+    [],
+  );
 
   const handleDirtyChange = useCallback(
     (dirty: boolean) => {
@@ -75,11 +248,13 @@ export function WorkspaceTabPanel({
 
   const editor = useEditor({
     extensions: createEditorExtensions(),
-    editorProps,
+    editorProps: imageEditorProps,
     onUpdate: () => {
       markDirtyRef.current?.();
     },
   });
+
+  editorRef.current = editor;
 
   const {
     markDirty,
@@ -87,6 +262,7 @@ export function WorkspaceTabPanel({
     saveDocument,
     saveDocumentAs,
     addQueuedImage,
+    queuedImages,
     setSuppressDirty,
   } = useTabDocument({
     editor,
@@ -96,6 +272,40 @@ export function WorkspaceTabPanel({
 
   markDirtyRef.current = markDirty;
 
+  useEffect(() => {
+    imageContextRef.current = {
+      docPath: tab.filePath,
+      addQueuedImage,
+      markDirty,
+      queuedImages,
+    };
+  }, [addQueuedImage, markDirty, queuedImages, tab.filePath]);
+
+  useEffect(() => {
+    if (!isActive) {
+      setImageDocPathProvider(() => '');
+      setImageSrcResolver(null);
+      setImageRepairContext(null);
+      return;
+    }
+
+    setImageDocPathProvider(() => tab.filePath);
+    setImageSrcResolver((src) =>
+      resolveImageSrcForDisplay(src, tab.filePath, imageContextRef.current.queuedImages),
+    );
+    setImageRepairContext({
+      docPath: tab.filePath,
+      addQueuedImage,
+      markDirty,
+    });
+
+    return () => {
+      setImageDocPathProvider(() => '');
+      setImageSrcResolver(null);
+      setImageRepairContext(null);
+    };
+  }, [addQueuedImage, isActive, markDirty, queuedImages, tab.filePath]);
+
   const loadContent = useCallback(async () => {
     if (!editor) {
       return;
@@ -104,7 +314,7 @@ export function WorkspaceTabPanel({
     setSuppressDirty(true);
     const prepared = isUntitledPath(tab.filePath)
       ? tab.initialContent
-      : await prepareMarkdownForEditor(tab.initialContent, tab.filePath);
+      : await prepareMarkdownForEditor(tab.initialContent);
     editor.commands.setContent(prepared, { contentType: 'markdown' });
     loadedEpochRef.current = tab.contentEpoch;
     setSuppressDirty(false);
@@ -179,23 +389,13 @@ export function WorkspaceTabPanel({
       return;
     }
 
-    if (isUntitledPath(tab.filePath)) {
-      const staged = await window.electronAPI.stageImage(sourcePath);
-      editor.chain().focus().setImage({ src: staged.fileUrl }).run();
-      addQueuedImage(staged);
-      return;
-    }
-
-    const { relativePath } = await window.electronAPI.copyImageForDocument(
+    await insertImageFromSource({
+      editor,
+      docPath: tab.filePath,
       sourcePath,
-      tab.filePath,
-    );
-    const fileUrl = await window.electronAPI.resolveAssetUrl(
-      tab.filePath,
-      relativePath,
-    );
-    editor.chain().focus().setImage({ src: fileUrl }).run();
-    markDirty();
+      addQueuedImage,
+      markDirty,
+    });
   }, [addQueuedImage, editor, markDirty, tab.filePath]);
 
   const handleInsertCode = useCallback(() => {

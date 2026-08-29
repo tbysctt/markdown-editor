@@ -30,6 +30,12 @@ export interface StagedImageResult {
   fileUrl: string;
 }
 
+export interface ClipboardImageResult {
+  relativePath: string;
+  fileUrl: string;
+  tempPath?: string;
+}
+
 export interface QueuedImageCopy {
   tempPath: string;
   relativePath: string;
@@ -87,6 +93,16 @@ export interface ElectronAPI {
     docPath: string,
     images: QueuedImageCopy[],
   ) => Promise<QueuedImageCopy[]>;
+  saveClipboardImage: (
+    docPath: string | null,
+  ) => Promise<ClipboardImageResult | null>;
+  saveImageBytes: (payload: {
+    bytes: ArrayBuffer;
+    fileName: string;
+    docPath: string | null;
+  }) => Promise<StagedImageResult | ClipboardImageResult>;
+  resolveAbsoluteAssetUrl: (absolutePath: string) => Promise<string>;
+  getPathForFile: (file: File) => string;
   exportPdf: (payload: {
     html: string;
     defaultFileName: string;
