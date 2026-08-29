@@ -2,12 +2,17 @@ import type { Editor } from '@tiptap/react';
 import { useEffect, useState } from 'react';
 import { AlertTypeDropdown } from './AlertTypeDropdown';
 import { ListTypeDropdown } from './ListTypeDropdown';
+import { TextTypeDropdown } from './TextTypeDropdown';
 import { ToolbarIconButton } from './ToolbarIconButton';
 import {
+  BoldIcon,
   CodeIcon,
   ImageIcon,
+  ItalicIcon,
   LinkIcon,
   MathIcon,
+  QuoteIcon,
+  StrikethroughIcon,
   TableIcon,
 } from './icons/ToolbarIcons';
 
@@ -18,42 +23,6 @@ interface ToolbarProps {
   onInsertImage: () => void;
   onInsertCode: () => void;
   onInsertMath: () => void;
-}
-
-type TextType =
-  | 'body'
-  | 'heading-1'
-  | 'heading-2'
-  | 'heading-3'
-  | 'heading-4'
-  | 'heading-5';
-
-const TEXT_TYPE_OPTIONS: Array<{ value: TextType; label: string }> = [
-  { value: 'body', label: 'Body text' },
-  { value: 'heading-1', label: 'Heading 1' },
-  { value: 'heading-2', label: 'Heading 2' },
-  { value: 'heading-3', label: 'Heading 3' },
-  { value: 'heading-4', label: 'Heading 4' },
-  { value: 'heading-5', label: 'Heading 5' },
-];
-
-function getActiveTextType(editor: Editor): TextType {
-  for (const level of [1, 2, 3, 4, 5] as const) {
-    if (editor.isActive('heading', { level })) {
-      return `heading-${level}` as TextType;
-    }
-  }
-  return 'body';
-}
-
-function applyTextType(editor: Editor, textType: TextType): void {
-  if (textType === 'body') {
-    editor.chain().focus().setParagraph().run();
-    return;
-  }
-
-  const level = Number(textType.replace('heading-', '')) as 1 | 2 | 3 | 4 | 5;
-  editor.chain().focus().toggleHeading({ level }).run();
 }
 
 export function Toolbar({
@@ -76,75 +45,53 @@ export function Toolbar({
     };
   }, [editor]);
 
-  const textType = getActiveTextType(editor);
-
   return (
     <div className="toolbar" role="toolbar" aria-label="Formatting">
       <div className="toolbar-group">
-        <label className="toolbar-label" htmlFor="text-type">
-          Text type
-        </label>
-        <select
-          id="text-type"
-          className="toolbar-select"
-          value={textType}
-          onChange={(event) =>
-            applyTextType(editor, event.target.value as TextType)
-          }
-        >
-          {TEXT_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <TextTypeDropdown editor={editor} />
       </div>
 
-      <div className="toolbar-divider" />
+      <div className="toolbar-divider" aria-hidden="true" />
 
       <div className="toolbar-group">
-        <button
-          type="button"
-          className={editor.isActive('bold') ? 'active' : ''}
-          onClick={() => editor.chain().focus().toggleBold().run()}
+        <ToolbarIconButton
           title="Bold"
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          active={editor.isActive('bold')}
         >
-          <strong>B</strong>
-        </button>
-        <button
-          type="button"
-          className={editor.isActive('italic') ? 'active' : ''}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
+          <BoldIcon />
+        </ToolbarIconButton>
+        <ToolbarIconButton
           title="Italic"
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          active={editor.isActive('italic')}
         >
-          <em>I</em>
-        </button>
-        <button
-          type="button"
-          className={editor.isActive('strike') ? 'active' : ''}
-          onClick={() => editor.chain().focus().toggleStrike().run()}
+          <ItalicIcon />
+        </ToolbarIconButton>
+        <ToolbarIconButton
           title="Strikethrough"
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          active={editor.isActive('strike')}
         >
-          <s>S</s>
-        </button>
+          <StrikethroughIcon />
+        </ToolbarIconButton>
       </div>
 
-      <div className="toolbar-divider" />
+      <div className="toolbar-divider" aria-hidden="true" />
 
       <div className="toolbar-group">
         <ListTypeDropdown editor={editor} />
-        <button
-          type="button"
-          className={editor.isActive('blockquote') ? 'active' : ''}
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        <ToolbarIconButton
           title="Quote"
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          active={editor.isActive('blockquote')}
         >
-          “ Quote
-        </button>
+          <QuoteIcon />
+        </ToolbarIconButton>
         <AlertTypeDropdown editor={editor} />
       </div>
 
-      <div className="toolbar-divider" />
+      <div className="toolbar-divider" aria-hidden="true" />
 
       <div className="toolbar-group">
         <ToolbarIconButton

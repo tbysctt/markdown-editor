@@ -335,6 +335,10 @@ const buildMenu = (): Menu => {
       click: () => sendMenuAction('format-heading-5'),
     },
     {
+      label: 'Heading 6',
+      click: () => sendMenuAction('format-heading-6'),
+    },
+    {
       label: 'Body Text',
       click: () => sendMenuAction('format-body'),
     },

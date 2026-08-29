@@ -60,6 +60,7 @@ export type MenuAction =
   | 'format-heading-3'
   | 'format-heading-4'
   | 'format-heading-5'
+  | 'format-heading-6'
   | 'format-body'
   | 'format-bullet-list'
   | 'format-ordered-list'

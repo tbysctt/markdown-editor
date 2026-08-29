@@ -84,11 +84,13 @@ export function AlertTypeDropdown({ editor }: AlertTypeDropdownProps) {
   };
 
   return (
-    <div className="list-dropdown" ref={containerRef}>
-      <div className="list-dropdown-control">
+    <div className="toolbar-dropdown list-dropdown" ref={containerRef}>
+      <div className="toolbar-split-control list-dropdown-control">
         <button
           type="button"
-          className={`list-dropdown-main${activeAlertType ? ' active' : ''}`}
+          className={`toolbar-split-main list-dropdown-main${
+            activeAlertType ? ' active' : ''
+          }`}
           onClick={handleMainClick}
           title="Insert note"
           aria-label="Insert note"
@@ -97,7 +99,7 @@ export function AlertTypeDropdown({ editor }: AlertTypeDropdownProps) {
         </button>
         <button
           type="button"
-          className="list-dropdown-toggle"
+          className="toolbar-split-toggle list-dropdown-toggle"
           onClick={() => setOpen((current) => !current)}
           title="Alert options"
           aria-label="Alert options"
@@ -108,13 +110,13 @@ export function AlertTypeDropdown({ editor }: AlertTypeDropdownProps) {
       </div>
 
       {open && (
-        <div className="list-dropdown-menu" role="menu">
+        <div className="toolbar-dropdown-menu list-dropdown-menu" role="menu">
           {ALERT_OPTIONS.map(({ type, label }) => (
             <button
               key={type}
               type="button"
               role="menuitem"
-              className={`list-dropdown-item${
+              className={`toolbar-dropdown-item list-dropdown-item${
                 activeAlertType === type ? ' active' : ''
               }`}
               onClick={() => handleSelect(type)}

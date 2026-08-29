@@ -14,6 +14,7 @@ const PRINT_STYLES = `
   h3 { font-size: 14pt; font-weight: 600; margin: 1rem 0 0.5rem; }
   h4 { font-size: 12pt; font-weight: 600; margin: 0.875rem 0 0.5rem; }
   h5 { font-size: 11pt; font-weight: 600; margin: 0.75rem 0 0.5rem; }
+  h6 { font-size: 10pt; font-weight: 600; margin: 0.75rem 0 0.5rem; }
   p { margin: 0 0 0.75rem; }
   ul, ol { margin: 0 0 0.75rem; padding-left: 1.5rem; }
   li { margin-bottom: 0.25rem; }

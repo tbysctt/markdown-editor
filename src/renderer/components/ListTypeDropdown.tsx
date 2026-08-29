@@ -170,11 +170,13 @@ export function ListTypeDropdown({ editor }: ListTypeDropdownProps) {
   };
 
   return (
-    <div className="list-dropdown" ref={containerRef}>
-      <div className="list-dropdown-control">
+    <div className="toolbar-dropdown list-dropdown" ref={containerRef}>
+      <div className="toolbar-split-control list-dropdown-control">
         <button
           type="button"
-          className={`list-dropdown-main${activeListType ? ' active' : ''}`}
+          className={`toolbar-split-main list-dropdown-main${
+            activeListType ? ' active' : ''
+          }`}
           onClick={handleMainClick}
           title={
             activeListType
@@ -191,7 +193,7 @@ export function ListTypeDropdown({ editor }: ListTypeDropdownProps) {
         </button>
         <button
           type="button"
-          className="list-dropdown-toggle"
+          className="toolbar-split-toggle list-dropdown-toggle"
           onClick={() => setOpen((current) => !current)}
           title="List options"
           aria-label="List options"
@@ -202,13 +204,13 @@ export function ListTypeDropdown({ editor }: ListTypeDropdownProps) {
       </div>
 
       {open && (
-        <div className="list-dropdown-menu" role="menu">
+        <div className="toolbar-dropdown-menu list-dropdown-menu" role="menu">
           {LIST_OPTIONS.map(({ type, label, Icon }) => (
             <button
               key={type}
               type="button"
               role="menuitem"
-              className={`list-dropdown-item${
+              className={`toolbar-dropdown-item list-dropdown-item${
                 activeListType === type ? ' active' : ''
               }`}
               onClick={() => handleSelect(type)}

@@ -659,6 +659,9 @@ export function applyFormatMenuAction(
     case 'format-heading-5':
       editor.chain().focus().toggleHeading({ level: 5 }).run();
       return true;
+    case 'format-heading-6':
+      editor.chain().focus().toggleHeading({ level: 6 }).run();
+      return true;
     case 'format-body':
       editor.chain().focus().setParagraph().run();
       return true;
