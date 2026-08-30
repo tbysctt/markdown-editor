@@ -1,8 +1,6 @@
 import type { Editor } from '@tiptap/react';
 import katex from 'katex';
-// eslint-disable-next-line import/no-unresolved
 import designTokensCss from '../styles/tokens.css?inline';
-// eslint-disable-next-line import/no-unresolved
 import editorProsePrintCss from '../editor/editor-prose-print.css?inline';
 
 function renderMathNodes(html: string): string {

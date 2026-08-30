@@ -37,7 +37,7 @@ export function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
         ))}
       </select>
       <pre className="m-0 border-none bg-transparent px-4 py-3">
-        <NodeViewContent as="code" />
+        <NodeViewContent />
       </pre>
     </NodeViewWrapper>
   );

@@ -20,7 +20,9 @@ type AppMode =
     }
   | { kind: 'folder'; rootPath: string };
 
-const WELCOME_MENU_ACTIONS = ['command-palette', 'close'] as const;
+import type { MenuAction } from '../ipc/channels';
+
+const WELCOME_MENU_ACTIONS = ['command-palette', 'close'] as const satisfies readonly MenuAction[];
 
 const COMMAND_ITEMS: CommandPaletteItem[] = [
   { kind: 'command', id: 'open-folder', label: 'Open folder' },
@@ -207,7 +209,7 @@ export function App() {
   }, [enterSingleMode, mode.kind, openFolder]);
 
   const handleWelcomeMenuAction = useCallback(
-    (action: (typeof WELCOME_MENU_ACTIONS)[number]) => {
+    (action: MenuAction) => {
       if (action === 'command-palette') {
         setCommandPaletteOpen(true);
         return;

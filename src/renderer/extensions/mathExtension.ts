@@ -1,4 +1,5 @@
 import { BlockMath, InlineMath } from '@tiptap/extension-mathematics';
+import type { NodeViewRenderer } from '@tiptap/core';
 import type { Editor } from '@tiptap/react';
 import katex from 'katex';
 
@@ -27,10 +28,10 @@ function createMathNodeView(options: {
   innerClass?: string;
   dataType: 'block-math' | 'inline-math';
   errorClass: string;
-  katexOptions: Record<string, unknown>;
+  katexOptions: Record<string, unknown> | undefined;
   editor: Editor;
   onClickEnabled: boolean;
-}) {
+}): NodeViewRenderer {
   const {
     tag,
     innerClass,
@@ -41,13 +42,8 @@ function createMathNodeView(options: {
     onClickEnabled,
   } = options;
 
-  return ({
-    node,
-    getPos,
-  }: {
-    node: { attrs: { latex: string } };
-    getPos: () => number | undefined;
-  }) => {
+  return ({ node, getPos }) => {
+    const latex = String(node.attrs.latex ?? '');
     const wrapper = document.createElement(tag);
     const renderTarget =
       tag === 'div' ? document.createElement('div') : wrapper;
@@ -63,7 +59,7 @@ function createMathNodeView(options: {
     }
 
     wrapper.dataset.type = dataType;
-    wrapper.setAttribute('data-latex', node.attrs.latex);
+    wrapper.setAttribute('data-latex', latex);
 
     if (tag === 'div') {
       wrapper.appendChild(renderTarget);
@@ -71,15 +67,15 @@ function createMathNodeView(options: {
 
     function renderMath() {
       try {
-        katex.render(node.attrs.latex, renderTarget, katexOptions);
+        katex.render(latex, renderTarget, katexOptions ?? {});
         wrapper.classList.remove(errorClass);
       } catch {
-        wrapper.textContent = node.attrs.latex;
+        wrapper.textContent = latex;
         wrapper.classList.add(errorClass);
       }
     }
 
-    const handleClick = (event: MouseEvent) => {
+    const handleClick = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
       const pos = getPos();
@@ -88,7 +84,7 @@ function createMathNodeView(options: {
         return;
       }
 
-      mathClickHandlers.get(editor)?.(node, pos);
+      mathClickHandlers.get(editor)?.({ attrs: { latex } }, pos);
     };
 
     if (onClickEnabled) {
@@ -117,7 +113,7 @@ export const BlockMathExtension = BlockMath.extend({
       innerClass: 'block-math-inner',
       dataType: 'block-math',
       errorClass: 'block-math-error',
-      katexOptions: { ...katexOptions, displayMode: true },
+      katexOptions: { ...(katexOptions ?? {}), displayMode: true },
       editor: this.editor,
       onClickEnabled: this.editor.isEditable,
     });
@@ -134,7 +130,7 @@ export const InlineMathExtension = InlineMath.extend({
       tag: 'span',
       dataType: 'inline-math',
       errorClass: 'inline-math-error',
-      katexOptions,
+      katexOptions: { ...(katexOptions ?? {}) } as Record<string, unknown>,
       editor: this.editor,
       onClickEnabled: this.editor.isEditable,
     });

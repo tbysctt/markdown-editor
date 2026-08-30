@@ -1,17 +1,32 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "commonjs",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
     "jsx": "react-jsx",
-    "allowJs": true,
+    "strict": true,
+    "noEmit": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "noImplicitAny": true,
-    "sourceMap": true,
-    "baseUrl": ".",
-    "outDir": "dist",
-    "moduleResolution": "node",
-    "resolveJsonModule": true
-  }
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "src",
+    "forge.config.ts",
+    "forge.env.d.ts",
+    "vite.shared.mts",
+    "vite.*.mts",
+    "vitest.config.mts",
+    "eslint.config.ts"
+  ]
 }

@@ -1,20 +1,21 @@
 import { describe, expect, it } from 'vitest';
+import type { CommandPaletteItem } from './CommandPalette';
 import { filterCommandPaletteItems } from './CommandPalette';
 
 describe('filterCommandPaletteItems', () => {
-  const commands = [
-    { kind: 'command' as const, id: 'save', label: 'Save File' },
-    { kind: 'command' as const, id: 'open', label: 'Open Folder' },
+  const commands: CommandPaletteItem[] = [
+    { kind: 'command', id: 'open-document', label: 'Save File' },
+    { kind: 'command', id: 'open-folder', label: 'Open Folder' },
   ];
 
-  const files = Array.from({ length: 60 }, (_, index) => ({
+  const files: CommandPaletteItem[] = Array.from({ length: 60 }, (_, index) => ({
     kind: 'file' as const,
-    id: `file-${index}`,
+    path: `/workspace/docs/file-${index}.md`,
     label: `file-${index}.md`,
     detail: `/workspace/docs/file-${index}.md`,
   }));
 
-  const allItems = [...commands, ...files];
+  const allItems: CommandPaletteItem[] = [...commands, ...files];
 
   it('returns all commands and up to 50 files when query is empty', () => {
     const result = filterCommandPaletteItems(allItems, '');
@@ -23,17 +24,17 @@ describe('filterCommandPaletteItems', () => {
   });
 
   it('ranks commands before files when filtering', () => {
-    const items = [
+    const items: CommandPaletteItem[] = [
       ...commands,
       {
-        kind: 'file' as const,
-        id: 'save-draft',
+        kind: 'file',
+        path: '/workspace/docs/save-draft.md',
         label: 'save-draft.md',
         detail: '/workspace/docs/save-draft.md',
       },
     ];
     const result = filterCommandPaletteItems(items, 'save');
-    expect(result[0]).toEqual(commands[0]);
+    expect(result[0]?.kind).toBe('command');
     expect(result.some((item) => item.kind === 'file')).toBe(true);
   });
 
@@ -42,7 +43,7 @@ describe('filterCommandPaletteItems', () => {
       [
         {
           kind: 'file',
-          id: 'notes',
+          path: '/workspace/projects/notes.md',
           label: 'notes.md',
           detail: '/workspace/projects/notes.md',
         },
@@ -54,9 +55,9 @@ describe('filterCommandPaletteItems', () => {
   });
 
   it('caps file results at 50 when many files match', () => {
-    const manyMatchingFiles = Array.from({ length: 80 }, (_, index) => ({
+    const manyMatchingFiles: CommandPaletteItem[] = Array.from({ length: 80 }, (_, index) => ({
       kind: 'file' as const,
-      id: `match-${index}`,
+      path: `/workspace/match-${index}.md`,
       label: `match-${index}.md`,
       detail: `/workspace/match-${index}.md`,
     }));

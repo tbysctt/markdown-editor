@@ -34,7 +34,6 @@ describe('print math rendering', () => {
 
   it('does not throw on invalid LaTeX', () => {
     editor = createTestEditor('Bad math $\\broken{');
-
-    expect(() => getPrintableHtml(editor)).not.toThrow();
+    expect(() => getPrintableHtml(editor!)).not.toThrow();
   });
 });

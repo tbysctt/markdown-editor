@@ -38,7 +38,7 @@ export function toggleHeading(editor: Editor, level: 1 | 2 | 3 | 4 | 5 | 6): voi
 }
 
 export function insertCodeBlock(editor: Editor): void {
-  editor.chain().focus().setCodeBlock({ language: null }).run();
+  editor.chain().focus().setCodeBlock().run();
 }
 
 export function insertBlockMath(editor: Editor): void {

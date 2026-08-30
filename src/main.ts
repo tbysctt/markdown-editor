@@ -1,7 +1,7 @@
 import {
   app,
   BrowserWindow,
-  clipboard,
+  clipboard as electronClipboard,
   dialog,
   ipcMain,
   Menu,
@@ -748,7 +748,11 @@ const registerIpcHandlers = (): void => {
   ipcMain.handle(
     IPC.FILE_SAVE_CLIPBOARD_IMAGE,
     async (_event, docPath: string | null) => {
-      const image = clipboard.readImage();
+      const image = (
+        electronClipboard as unknown as {
+          readImage: () => { isEmpty: () => boolean; toPNG: () => Buffer };
+        }
+      ).readImage();
       if (image.isEmpty()) {
         return null;
       }

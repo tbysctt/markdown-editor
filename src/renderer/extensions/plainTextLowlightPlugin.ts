@@ -2,7 +2,6 @@ import { findChildren } from '@tiptap/core';
 import type { Node as ProsemirrorNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-// @ts-expect-error highlight.js core has no types in this import path
 import highlight from 'highlight.js/lib/core';
 
 function parseNodes(
@@ -132,7 +131,7 @@ export function PlainTextAwareLowlightPlugin({
   };
   defaultLanguage: string | null | undefined;
 }) {
-  const lowlightPlugin = new Plugin({
+  const lowlightPlugin: Plugin = new Plugin({
     key: new PluginKey('lowlight'),
 
     state: {
@@ -180,7 +179,7 @@ export function PlainTextAwareLowlightPlugin({
     },
 
     props: {
-      decorations(state) {
+      decorations(state): DecorationSet | undefined {
         return lowlightPlugin.getState(state);
       },
     },
