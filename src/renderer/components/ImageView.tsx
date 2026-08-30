@@ -162,6 +162,20 @@ export function ImageView({
     );
   }
 
+  if (status === 'loading' && !displayUrl) {
+    return (
+      <NodeViewWrapper className="my-2" data-src={src}>
+        <div
+          className="flex min-h-[4rem] items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-sm text-gray-500"
+          contentEditable={false}
+          aria-busy="true"
+        >
+          Loading image…
+        </div>
+      </NodeViewWrapper>
+    );
+  }
+
   return (
     <NodeViewWrapper className="my-2" data-src={src}>
       <img

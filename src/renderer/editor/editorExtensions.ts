@@ -1,6 +1,5 @@
 import { FindAndReplace } from '@tiptap/extension-find-and-replace';
 import { StarterKit } from '@tiptap/starter-kit';
-import { Link } from '@tiptap/extension-link';
 import { ImageExtension } from '../extensions/imageExtension';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
@@ -23,16 +22,16 @@ export function createEditorExtensions(): Extensions {
       code: {
         HTMLAttributes: { class: 'not-prose' },
       },
+      link: {
+        openOnClick: false,
+        autolink: true,
+        defaultProtocol: 'https',
+      },
     }),
     CodeBlockExtension,
     BlockMathExtension,
     InlineMathExtension,
     AlertExtension,
-    Link.configure({
-      openOnClick: false,
-      autolink: true,
-      defaultProtocol: 'https',
-    }),
     ImageExtension,
     TaskList,
     TaskItem.configure({

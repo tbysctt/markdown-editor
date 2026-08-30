@@ -5,6 +5,12 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { cn } from '../utils/cn';
+import {
+  commandPaletteOverlayClass,
+  commandPalettePanelClass,
+  listRowActiveClass,
+  listRowClass,
+} from '../styles/ui';
 import { rankByFuzzyMatch } from '../utils/fuzzyMatch';
 
 export type CommandPaletteItem =
@@ -83,12 +89,12 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-start justify-center bg-black/40 pt-[10vh]"
+      className={commandPaletteOverlayClass}
       role="presentation"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[560px] overflow-hidden rounded-xl bg-white shadow-2xl"
+        className={commandPalettePanelClass}
         role="dialog"
         aria-label="Quick Open"
         onClick={(event) => event.stopPropagation()}
@@ -121,8 +127,9 @@ export function CommandPalette({
                 aria-selected={index === selectedIndex}
                 data-active={index === selectedIndex ? 'true' : undefined}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-2 text-left font-inherit text-[#1a1a1a] hover:bg-indigo-50',
-                  index === selectedIndex && 'bg-indigo-50',
+                  listRowClass,
+                  'px-4',
+                  index === selectedIndex && listRowActiveClass,
                 )}
                 onMouseEnter={() => setSelectedIndex(index)}
                 onClick={() => onSelect(item)}

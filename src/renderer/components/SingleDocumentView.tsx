@@ -10,6 +10,7 @@ import { useStandaloneTabs } from '../hooks/useStandaloneTabs';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../editor/editorConfig';
 import { getFileName } from '../utils/markdown';
 import { isUntitledPath } from '../types/workspace';
+import { emptyStateClass } from '../styles/ui';
 
 interface SingleDocumentViewProps {
   initialDocument?: { path: string; content: string } | null;
@@ -165,7 +166,7 @@ export function SingleDocumentView({
       />
       <div className="relative flex min-h-0 flex-1 flex-col">
         {tabs.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center text-[0.9375rem] text-gray-500">
+          <div className={emptyStateClass}>
             <p>Open a markdown file or create a new document to begin editing.</p>
           </div>
         ) : (

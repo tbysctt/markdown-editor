@@ -1,5 +1,11 @@
 import type { Editor } from '@tiptap/react';
-import { useEffect, useRef, useState } from 'react';
+import { useDropdownMenu } from '../hooks/useDropdownMenu';
+import {
+  dropdownMenuItemActiveClass,
+  dropdownMenuItemClass,
+  dropdownMenuPanelClass,
+  dropdownTriggerClass,
+} from '../styles/ui';
 import { cn } from '../utils/cn';
 import { ChevronDownIcon } from './icons/ToolbarIcons';
 
@@ -25,9 +31,6 @@ const TEXT_TYPE_OPTIONS: Array<{ value: TextType; label: string }> = [
   { value: 'heading-5', label: 'Heading 5' },
   { value: 'heading-6', label: 'Heading 6' },
 ];
-
-const menuItemClass =
-  'flex w-full cursor-pointer items-center gap-2 rounded border-none bg-transparent px-2.5 py-1.5 text-left text-[0.8125rem] text-[#44546f] hover:bg-[#f0f2f5] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600';
 
 function getActiveTextType(editor: Editor): TextType {
   for (const level of [1, 2, 3, 4, 5, 6] as const) {
@@ -55,56 +58,24 @@ function applyTextType(editor: Editor, textType: TextType): void {
 }
 
 export function TextTypeDropdown({ editor }: TextTypeDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const [, setRevision] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const { open, toggle, close, containerRef } = useDropdownMenu({ editor });
 
   const activeTextType = getActiveTextType(editor);
   const activeLabel =
     TEXT_TYPE_OPTIONS.find((option) => option.value === activeTextType)?.label ??
     'Paragraph';
 
-  useEffect(() => {
-    const refresh = () => setRevision((value) => value + 1);
-    editor.on('selectionUpdate', refresh);
-    editor.on('transaction', refresh);
-    return () => {
-      editor.off('selectionUpdate', refresh);
-      editor.off('transaction', refresh);
-    };
-  }, [editor]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [open]);
-
   const handleSelect = (textType: TextType) => {
     applyTextType(editor, textType);
-    setOpen(false);
+    close();
   };
 
   return (
     <div className="relative mr-0.5" ref={containerRef}>
       <button
         type="button"
-        className="inline-flex h-8 min-w-[7.5rem] cursor-pointer items-center gap-1.5 rounded border-none bg-transparent px-2 pl-2.5 text-[0.8125rem] font-medium text-[#44546f] hover:bg-[#f0f2f5] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600"
-        onClick={() => setOpen((current) => !current)}
+        className={dropdownTriggerClass}
+        onClick={toggle}
         title="Text style"
         aria-label="Text style"
         aria-expanded={open}
@@ -115,18 +86,15 @@ export function TextTypeDropdown({ editor }: TextTypeDropdownProps) {
       </button>
 
       {open && (
-        <div
-          className="absolute left-0 top-[calc(100%+4px)] z-50 min-w-[11.25rem] rounded-md border border-[#dfe1e6] bg-white p-1 shadow-lg"
-          role="menu"
-        >
+        <div className={dropdownMenuPanelClass} role="menu">
           {TEXT_TYPE_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
               type="button"
               role="menuitem"
               className={cn(
-                menuItemClass,
-                activeTextType === value && 'bg-blue-100 text-blue-700',
+                dropdownMenuItemClass,
+                activeTextType === value && dropdownMenuItemActiveClass,
               )}
               onClick={() => handleSelect(value)}
             >

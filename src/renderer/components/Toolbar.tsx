@@ -4,6 +4,7 @@ import { AlertTypeDropdown } from './AlertTypeDropdown';
 import { ListTypeDropdown } from './ListTypeDropdown';
 import { TextTypeDropdown } from './TextTypeDropdown';
 import { ToolbarIconButton } from './ToolbarIconButton';
+import { ToolbarDivider } from './ToolbarDivider';
 import {
   BoldIcon,
   CodeIcon,
@@ -55,7 +56,7 @@ export function Toolbar({
         <TextTypeDropdown editor={editor} />
       </div>
 
-      <div className="mx-1.5 h-6 w-px shrink-0 bg-[#dfe1e6]" aria-hidden="true" />
+      <ToolbarDivider />
 
       <div className="flex items-center gap-0.5">
         <ToolbarIconButton
@@ -81,7 +82,7 @@ export function Toolbar({
         </ToolbarIconButton>
       </div>
 
-      <div className="mx-1.5 h-6 w-px shrink-0 bg-[#dfe1e6]" aria-hidden="true" />
+      <ToolbarDivider />
 
       <div className="flex items-center gap-0.5">
         <ListTypeDropdown editor={editor} />
@@ -95,7 +96,7 @@ export function Toolbar({
         <AlertTypeDropdown editor={editor} />
       </div>
 
-      <div className="mx-1.5 h-6 w-px shrink-0 bg-[#dfe1e6]" aria-hidden="true" />
+      <ToolbarDivider />
 
       <div className="flex items-center gap-0.5">
         <ToolbarIconButton

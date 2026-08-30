@@ -12,6 +12,7 @@ import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../editor/editorConfig';
 import type { OpenTabOptions } from '../types/workspace';
 import { getFileName } from '../utils/markdown';
 import type { WorkspaceMatch } from '../utils/workspaceSearch';
+import { emptyStateClass } from '../styles/ui';
 
 interface WorkspaceViewProps {
   rootPath: string;
@@ -315,7 +316,7 @@ export function WorkspaceView({ rootPath, onRegisterActions }: WorkspaceViewProp
         />
         <div className="relative flex min-h-0 flex-1 flex-col">
           {tabs.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center text-[0.9375rem] text-gray-500">
+            <div className={emptyStateClass}>
               <p>Select a markdown file from the sidebar to begin editing.</p>
             </div>
           ) : (

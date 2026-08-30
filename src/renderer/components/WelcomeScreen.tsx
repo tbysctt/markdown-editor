@@ -1,6 +1,10 @@
 import { useSyncExternalStore, type ReactNode } from 'react';
 import { APP_NAME } from '../../shared/appMeta';
 import {
+  sectionHeadingClass,
+  welcomeRowClass,
+} from '../styles/ui';
+import {
   FileIcon,
   FilePlusIcon,
   FolderIcon,
@@ -35,9 +39,6 @@ function formatShortcut(keys: string): string {
   return keys.replace(/CmdOrCtrl/g, 'Ctrl').replace(/\+/g, '+');
 }
 
-const rowButtonClass =
-  'group -mx-2.5 flex w-full cursor-pointer items-center gap-3 rounded border-none bg-transparent px-2.5 py-2 text-left font-inherit text-[#1a1a1a] transition-colors hover:bg-gray-200';
-
 interface WelcomeActionRowProps {
   icon: ReactNode;
   label: string;
@@ -52,7 +53,7 @@ function WelcomeActionRow({
   onClick,
 }: WelcomeActionRowProps) {
   return (
-    <button type="button" className={rowButtonClass} onClick={onClick}>
+    <button type="button" className={welcomeRowClass} onClick={onClick}>
       <span className="flex w-5 shrink-0 items-center justify-center text-gray-600 [&_svg]:h-4 [&_svg]:w-4">
         {icon}
       </span>
@@ -76,7 +77,7 @@ function WelcomeRecentRow({ entry, onOpen }: WelcomeRecentRowProps) {
   const displayPath = getRecentDisplayPath(entry.path);
 
   return (
-    <button type="button" className={rowButtonClass} onClick={onOpen}>
+    <button type="button" className={welcomeRowClass} onClick={onOpen}>
       <span className="flex w-5 shrink-0 items-center justify-center text-gray-600 [&_svg]:h-4 [&_svg]:w-4">
         {entry.type === 'folder' ? <FolderIcon /> : <FileIcon />}
       </span>
@@ -107,9 +108,9 @@ export function WelcomeScreen({
   );
 
   return (
-    <div className="flex min-h-full justify-center overflow-y-auto bg-[#f0f2f5] px-16 py-12">
+    <div className="flex min-h-full justify-center overflow-y-auto bg-app-bg px-16 py-12">
       <div className="w-full max-w-[640px]">
-        <h1 className="mb-2 mt-0 text-4xl font-light tracking-tight text-[#1a1a1a]">
+        <h1 className="mb-2 mt-0 text-4xl font-light tracking-tight text-app-text">
           {APP_NAME}
         </h1>
         <p className="mb-10 mt-0 text-[0.8125rem] text-gray-400">
@@ -117,7 +118,7 @@ export function WelcomeScreen({
         </p>
 
         <section className="mb-8">
-          <h2 className="mb-2 mt-0 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+          <h2 className={sectionHeadingClass}>
             Start
           </h2>
           <div className="flex flex-col">
@@ -143,7 +144,7 @@ export function WelcomeScreen({
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-2 mt-0 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+          <h2 className={sectionHeadingClass}>
             Recent
           </h2>
           <div className="flex flex-col">

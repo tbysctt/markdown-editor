@@ -55,7 +55,7 @@ export function TabBar({
   return (
     <>
       <div
-        className="flex shrink-0 overflow-x-auto border-b border-gray-200 bg-[#eceef2]"
+        className="flex shrink-0 overflow-x-auto border-b border-gray-200 bg-app-tab-bar"
         role="tablist"
       >
         {tabs.map((tab) => {
@@ -67,7 +67,7 @@ export function TabBar({
               aria-selected={isActive}
               className={cn(
                 'flex max-w-[180px] cursor-pointer select-none items-center gap-1.5 border-r border-gray-300 bg-gray-200 py-1.5 pl-3 pr-2 text-[0.8125rem] text-gray-600 hover:bg-gray-100',
-                isActive && '-mb-px border-b border-white bg-white text-[#1a1a1a]',
+                isActive && '-mb-px border-b border-white bg-white text-app-text',
               )}
               onClick={() => onSelectTab(tab.id)}
               onDoubleClick={() => onPinTab?.(tab.id)}
@@ -97,7 +97,7 @@ export function TabBar({
               </span>
               <button
                 type="button"
-                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 text-base leading-none text-gray-500 hover:bg-gray-300 hover:text-[#1a1a1a]"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border-none bg-transparent p-0 text-base leading-none text-gray-500 hover:bg-gray-300 hover:text-app-text"
                 aria-label={`Close ${getTabLabel(tab.filePath)}`}
                 onClick={(event) => {
                   event.stopPropagation();

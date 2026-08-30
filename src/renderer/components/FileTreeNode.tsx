@@ -102,7 +102,7 @@ export function FileTreeNodeRow({
         className={cn(
           'flex w-full items-center gap-1 rounded-none border-none bg-transparent py-1 pr-2 text-left text-[0.8125rem]',
           isInteractive
-            ? 'cursor-pointer text-gray-700 hover:bg-[#eef2f7]'
+            ? 'cursor-pointer text-gray-700 hover:bg-app-hover'
             : 'cursor-default text-gray-400',
           isActive && 'bg-blue-100 text-blue-700',
           isSelected && !isActive && 'bg-gray-200',

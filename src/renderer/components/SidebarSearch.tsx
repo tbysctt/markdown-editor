@@ -8,6 +8,13 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '../utils/cn';
+import {
+  listRowActiveClass,
+  listRowClass,
+  searchInputClass,
+  searchToggleBtnClass,
+  toggleBtnActiveClass,
+} from '../styles/ui';
 import type { FileTreeNode } from '../types/electron';
 import { getFileName } from '../utils/markdown';
 import {
@@ -159,7 +166,7 @@ export function SidebarSearch({
         <input
           ref={inputRef}
           type="text"
-          className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-[0.8125rem] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
+          className={cn('min-w-0 flex-1', searchInputClass)}
           value={query}
           placeholder="Search"
           aria-label="Search in workspace"
@@ -169,8 +176,8 @@ export function SidebarSearch({
         <button
           type="button"
           className={cn(
-            'inline-flex h-[1.875rem] min-w-[1.625rem] cursor-pointer items-center justify-center rounded border border-gray-300 bg-white px-1.5 text-xs text-gray-600',
-            caseSensitive && 'bg-gray-200 text-[#1a1a1a]',
+            searchToggleBtnClass,
+            caseSensitive && toggleBtnActiveClass,
           )}
           title="Match case"
           aria-label="Match case"
@@ -200,8 +207,9 @@ export function SidebarSearch({
                     <button
                       type="button"
                       className={cn(
-                        'flex w-full cursor-pointer items-start gap-2 border-none bg-transparent px-3 py-1.5 text-left font-inherit text-gray-700 hover:bg-indigo-50',
-                        isActive && 'bg-blue-100',
+                        listRowClass,
+                        'items-start px-3 py-1.5 text-gray-700',
+                        isActive && listRowActiveClass,
                       )}
                       onClick={() => {
                         onActiveMatchIndexChange(flatIndex);

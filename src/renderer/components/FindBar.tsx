@@ -1,6 +1,12 @@
 import type { Editor } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '../utils/cn';
+import {
+  findBtnClass,
+  searchInputClass,
+  toggleBtnActiveClass,
+  Z_FIND_BAR,
+} from '../styles/ui';
 
 interface FindBarProps {
   editor: Editor;
@@ -48,9 +54,6 @@ async function navigateToMatchIndex(
     editor.commands.goToNextResult();
   }
 }
-
-const findBtnClass =
-  'inline-flex min-w-[1.625rem] h-[1.625rem] cursor-pointer items-center justify-center rounded border-none bg-transparent px-1 text-[0.8125rem] leading-none text-gray-600 hover:bg-gray-100 hover:text-[#1a1a1a]';
 
 export function FindBar({
   editor,
@@ -129,13 +132,13 @@ export function FindBar({
 
   return (
     <div
-      className="absolute right-3 top-[calc(100%+0.375rem)] z-20 flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 py-1.5 shadow-md"
+      className={`absolute right-3 top-[calc(100%+0.375rem)] ${Z_FIND_BAR} flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 py-1.5 shadow-md`}
       role="search"
     >
       <input
         ref={inputRef}
         type="text"
-        className="w-56 rounded border border-gray-300 px-2 py-1 text-[0.8125rem] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
+        className={cn('w-56', searchInputClass, 'py-1')}
         value={query}
         placeholder="Find"
         aria-label="Find in document"
@@ -171,10 +174,7 @@ export function FindBar({
       </button>
       <button
         type="button"
-        className={cn(
-          findBtnClass,
-          caseSensitive && 'bg-gray-200 text-[#1a1a1a]',
-        )}
+        className={cn(findBtnClass, caseSensitive && toggleBtnActiveClass)}
         title="Match case"
         aria-label="Match case"
         aria-pressed={caseSensitive}

@@ -162,7 +162,7 @@
   }
 
   .editor-content.prose :where(pre:not(.code-block-wrapper pre)) {
-    @apply mb-3 overflow-x-auto rounded-md border border-gray-200 bg-[#f6f8fa] px-4 py-3 font-mono text-sm leading-normal;
+    @apply mb-3 overflow-x-auto rounded-md border border-gray-200 bg-code-bg px-4 py-3 font-mono text-sm leading-normal;
   }
 
   .code-block-wrapper pre {
@@ -178,7 +178,7 @@
   }
 
   .editor-content .tiptap-mathematics-render[data-type='block-math'] {
-    @apply my-3 block cursor-pointer rounded-md border border-gray-200 bg-[#fafafa] px-4 py-3 text-center;
+    @apply my-3 block cursor-pointer rounded-md border border-gray-200 bg-math-bg px-4 py-3 text-center;
   }
 
   .editor-content .tiptap-mathematics-render[data-type='block-math']:hover {
@@ -212,7 +212,7 @@
   .code-block-plain code,
   .code-block-plain .hljs,
   .code-block-plain .hljs * {
-    color: #1a1a1a !important;
+    color: var(--color-app-text) !important;
     background: none !important;
     font-weight: normal !important;
     font-style: normal !important;

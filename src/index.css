@@ -1,6 +1,20 @@
+@import "./renderer/styles/tokens.css";
 @import "tailwindcss";
 @import "./renderer/editor/editor-prose.css";
 @plugin "@tailwindcss/typography";
+
+@theme {
+  --color-app-text: #1a1a1a;
+  --color-app-bg: #f0f2f5;
+  --color-app-sidebar: #f8f9fb;
+  --color-app-muted: #44546f;
+  --color-app-border: #dfe1e6;
+  --color-app-hover: #eef2f7;
+  --color-app-surface-hover: #f0f2f5;
+  --color-app-tab-bar: #eceef2;
+  --color-code-bg: #f6f8fa;
+  --color-math-bg: #fafafa;
+}
 
 @layer base {
   *,
@@ -17,7 +31,7 @@
   }
 
   body {
-    @apply bg-[#f0f2f5] font-sans text-base text-[#1a1a1a];
+    @apply bg-app-bg font-sans text-base text-app-text;
   }
 
   button,

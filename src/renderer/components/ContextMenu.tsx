@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { cn } from '../utils/cn';
+import { Z_CONTEXT_MENU } from '../styles/ui';
 
 export interface ContextMenuItem {
   id: string;
@@ -52,7 +53,10 @@ export function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-[1000] min-w-40 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+      className={cn(
+        'fixed min-w-40 rounded-md border border-gray-200 bg-white py-1 shadow-lg',
+        Z_CONTEXT_MENU,
+      )}
       style={{ top: y, left: x }}
       role="menu"
     >

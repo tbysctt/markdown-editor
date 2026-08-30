@@ -14,7 +14,7 @@ export function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
   return (
     <NodeViewWrapper
       className={cn(
-        'code-block-wrapper not-prose mb-3 overflow-hidden rounded-md border border-gray-200 bg-[#f6f8fa]',
+        'code-block-wrapper not-prose mb-3 overflow-hidden rounded-md border border-gray-200 bg-code-bg',
         isPlainText && 'code-block-plain',
       )}
       data-plain-text={isPlainText ? 'true' : undefined}

@@ -90,7 +90,7 @@ export const AlertExtension = Node.create<AlertOptions>({
       'blockquote',
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
         'data-alert-type': alertType,
-        class: `alert alert-${alertType} not-prose`,
+        class: 'not-prose',
       }),
       getAlertHeaderSpec(alertType),
       ['div', { class: 'alert-content' }, 0],

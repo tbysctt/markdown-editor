@@ -1,0 +1,34 @@
+/* Shared design tokens for print/export and cross-stylesheet reference. */
+
+:root {
+  --color-app-text: #1a1a1a;
+  --color-app-bg: #f0f2f5;
+  --color-app-sidebar: #f8f9fb;
+  --color-app-muted: #44546f;
+  --color-app-border: #dfe1e6;
+  --color-app-hover: #eef2f7;
+  --color-app-surface-hover: #f0f2f5;
+  --color-app-tab-bar: #eceef2;
+  --color-code-bg: #f6f8fa;
+  --color-math-bg: #fafafa;
+
+  --color-alert-note-border: #2563eb;
+  --color-alert-note-bg: #eff6ff;
+  --color-alert-note-text: #1e3a8a;
+
+  --color-alert-tip-border: #16a34a;
+  --color-alert-tip-bg: #f0fdf4;
+  --color-alert-tip-text: #14532d;
+
+  --color-alert-important-border: #9333ea;
+  --color-alert-important-bg: #faf5ff;
+  --color-alert-important-text: #581c87;
+
+  --color-alert-warning-border: #ea580c;
+  --color-alert-warning-bg: #fff7ed;
+  --color-alert-warning-text: #7c2d12;
+
+  --color-alert-caution-border: #dc2626;
+  --color-alert-caution-bg: #fef2f2;
+  --color-alert-caution-text: #991b1b;
+}

@@ -1,5 +1,14 @@
 import type { Editor } from '@tiptap/react';
-import { useEffect, useRef, useState } from 'react';
+import { useDropdownMenu } from '../hooks/useDropdownMenu';
+import {
+  dropdownMenuItemActiveClass,
+  dropdownMenuItemClass,
+  dropdownMenuPanelClass,
+  splitBtnMainClass,
+  splitBtnToggleClass,
+  splitBtnWrapperClass,
+  toolbarIconBtnActiveClass,
+} from '../styles/ui';
 import { cn } from '../utils/cn';
 import {
   BulletListIcon,
@@ -23,15 +32,6 @@ const LIST_OPTIONS: Array<{
   { type: 'ordered', label: 'Numbered list', Icon: OrderedListIcon },
   { type: 'task', label: 'Task list', Icon: TaskListIcon },
 ];
-
-const splitMainClass =
-  'inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-l border-none bg-transparent p-0 text-[#44546f] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 [&_svg]:h-4 [&_svg]:w-4';
-
-const splitToggleClass =
-  'inline-flex h-8 w-5 cursor-pointer items-center justify-center rounded-r border-l border-[#dfe1e6] bg-transparent p-0 text-[#44546f] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 [&_svg]:h-4 [&_svg]:w-4';
-
-const menuItemClass =
-  'flex w-full cursor-pointer items-center gap-2 rounded border-none bg-transparent px-2.5 py-1.5 text-left text-[0.8125rem] text-[#44546f] hover:bg-[#f0f2f5] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600';
 
 function getActiveListType(editor: Editor): ListType | null {
   if (editor.isActive('taskList')) {
@@ -125,45 +125,13 @@ function toggleOffList(editor: Editor): void {
 }
 
 export function ListTypeDropdown({ editor }: ListTypeDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const [, setRevision] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const { open, toggle, close, containerRef } = useDropdownMenu({ editor });
 
   const activeListType = getActiveListType(editor);
   const displayType = activeListType ?? 'bullet';
   const DisplayIcon =
     LIST_OPTIONS.find((option) => option.type === displayType)?.Icon ??
     BulletListIcon;
-
-  useEffect(() => {
-    const refresh = () => setRevision((value) => value + 1);
-    editor.on('selectionUpdate', refresh);
-    editor.on('transaction', refresh);
-    return () => {
-      editor.off('selectionUpdate', refresh);
-      editor.off('transaction', refresh);
-    };
-  }, [editor]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [open]);
 
   const handleMainClick = () => {
     if (activeListType) {
@@ -176,15 +144,18 @@ export function ListTypeDropdown({ editor }: ListTypeDropdownProps) {
 
   const handleSelect = (type: ListType) => {
     applyListType(editor, type);
-    setOpen(false);
+    close();
   };
 
   return (
     <div className="relative" ref={containerRef}>
-      <div className="flex items-stretch rounded hover:bg-[#f0f2f5]">
+      <div className={splitBtnWrapperClass}>
         <button
           type="button"
-          className={cn(splitMainClass, activeListType && 'bg-blue-100 text-blue-700')}
+          className={cn(
+            splitBtnMainClass,
+            activeListType && toolbarIconBtnActiveClass,
+          )}
           onClick={handleMainClick}
           title={
             activeListType
@@ -201,8 +172,8 @@ export function ListTypeDropdown({ editor }: ListTypeDropdownProps) {
         </button>
         <button
           type="button"
-          className={splitToggleClass}
-          onClick={() => setOpen((current) => !current)}
+          className={splitBtnToggleClass}
+          onClick={toggle}
           title="List options"
           aria-label="List options"
           aria-expanded={open}
@@ -212,18 +183,15 @@ export function ListTypeDropdown({ editor }: ListTypeDropdownProps) {
       </div>
 
       {open && (
-        <div
-          className="absolute left-0 top-[calc(100%+4px)] z-50 min-w-[11.25rem] rounded-md border border-[#dfe1e6] bg-white p-1 shadow-lg"
-          role="menu"
-        >
+        <div className={dropdownMenuPanelClass} role="menu">
           {LIST_OPTIONS.map(({ type, label, Icon }) => (
             <button
               key={type}
               type="button"
               role="menuitem"
               className={cn(
-                menuItemClass,
-                activeListType === type && 'bg-blue-100 text-blue-700',
+                dropdownMenuItemClass,
+                activeListType === type && dropdownMenuItemActiveClass,
               )}
               onClick={() => handleSelect(type)}
             >

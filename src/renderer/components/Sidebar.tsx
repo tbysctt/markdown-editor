@@ -13,6 +13,11 @@ import type { OpenTabOptions } from '../types/workspace';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { getFileName } from '../utils/markdown';
 import type { WorkspaceMatch } from '../utils/workspaceSearch';
+import {
+  sidebarActionBtnClass,
+  sidebarViewBtnActiveClass,
+  sidebarViewBtnClass,
+} from '../styles/ui';
 
 export type SidebarView = 'explorer' | 'search';
 
@@ -41,12 +46,6 @@ interface ContextMenuState {
   node: FileTreeNode;
   isRoot: boolean;
 }
-
-const viewBtnClass =
-  'inline-flex h-6 min-w-6 items-center justify-center rounded border-none bg-transparent px-1 text-gray-500 hover:bg-gray-100 hover:text-[#1a1a1a] [&_svg]:h-3.5 [&_svg]:w-3.5';
-
-const actionBtnClass =
-  'inline-flex h-6 min-w-6 items-center justify-center rounded border-none bg-transparent px-1 text-xs leading-none text-gray-600 hover:bg-gray-100 hover:text-[#1a1a1a] [&_svg]:h-3.5 [&_svg]:w-3.5';
 
 export function Sidebar({
   rootPath,
@@ -108,13 +107,16 @@ export function Sidebar({
   }, [contextMenu, onDelete, onNewFile, onNewFolder, onRename]);
 
   return (
-    <aside className="flex w-[260px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-[#f8f9fb]">
+    <aside className="flex w-[260px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-app-sidebar">
       <div className="shrink-0 border-b border-gray-200 bg-white px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex shrink-0 items-center gap-0.5">
             <button
               type="button"
-              className={cn(viewBtnClass, view === 'explorer' && 'bg-gray-200 text-[#1a1a1a]')}
+              className={cn(
+                sidebarViewBtnClass,
+                view === 'explorer' && sidebarViewBtnActiveClass,
+              )}
               title="Explorer"
               aria-label="Explorer"
               aria-pressed={view === 'explorer'}
@@ -124,7 +126,10 @@ export function Sidebar({
             </button>
             <button
               type="button"
-              className={cn(viewBtnClass, view === 'search' && 'bg-gray-200 text-[#1a1a1a]')}
+              className={cn(
+                sidebarViewBtnClass,
+                view === 'search' && sidebarViewBtnActiveClass,
+              )}
               title="Search"
               aria-label="Search"
               aria-pressed={view === 'search'}
@@ -140,7 +145,7 @@ export function Sidebar({
             <div className="flex shrink-0 items-center gap-0.5">
               <button
                 type="button"
-                className={actionBtnClass}
+                className={sidebarActionBtnClass}
                 title="New File"
                 aria-label="New File"
                 onClick={() => onNewFile()}
@@ -149,7 +154,7 @@ export function Sidebar({
               </button>
               <button
                 type="button"
-                className={actionBtnClass}
+                className={sidebarActionBtnClass}
                 title="New Folder"
                 aria-label="New Folder"
                 onClick={() => onNewFolder()}
