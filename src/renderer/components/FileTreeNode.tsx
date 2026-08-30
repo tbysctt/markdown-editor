@@ -45,8 +45,9 @@ export function FileTreeNodeRow({
   const [expanded, setExpanded] = useState(depth === 0 || containsReveal);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMarkdown = !isDirectory && isMarkdownFile(node.path);
-  const isActive = !isDirectory && node.path === activeFilePath;
-  const isSelected = node.path === selectedPath;
+  const isInteractive = isDirectory || isMarkdown;
+  const isActive = isMarkdown && node.path === activeFilePath;
+  const isSelected = isInteractive && node.path === selectedPath;
   const isRoot = node.path === rootPath;
 
   useEffect(() => {
@@ -99,9 +100,10 @@ export function FileTreeNodeRow({
       <button
         type="button"
         className={cn(
-          'flex w-full items-center gap-1 rounded-none border-none bg-transparent py-1 pr-2 text-left text-[0.8125rem] text-gray-700',
-          !isDirectory && !isMarkdown && 'cursor-default text-gray-400',
-          isDirectory || isMarkdown ? 'cursor-pointer hover:bg-[#eef2f7]' : '',
+          'flex w-full items-center gap-1 rounded-none border-none bg-transparent py-1 pr-2 text-left text-[0.8125rem]',
+          isInteractive
+            ? 'cursor-pointer text-gray-700 hover:bg-[#eef2f7]'
+            : 'cursor-default text-gray-400',
           isActive && 'bg-blue-100 text-blue-700',
           isSelected && !isActive && 'bg-gray-200',
         )}
@@ -115,12 +117,22 @@ export function FileTreeNodeRow({
         }}
         aria-expanded={isDirectory ? expanded : undefined}
       >
-        <span className="w-3 shrink-0 text-gray-500 [&_svg]:block [&_svg]:h-3 [&_svg]:w-3">
+        <span
+          className={cn(
+            'w-3 shrink-0 [&_svg]:block [&_svg]:h-3 [&_svg]:w-3',
+            isInteractive ? 'text-gray-500' : 'text-gray-400',
+          )}
+        >
           {isDirectory ? (
             expanded ? <ChevronDownIcon /> : <ChevronRightIcon />
           ) : null}
         </span>
-        <span className="shrink-0 [&_svg]:block [&_svg]:h-3.5 [&_svg]:w-3.5">
+        <span
+          className={cn(
+            'shrink-0 [&_svg]:block [&_svg]:h-3.5 [&_svg]:w-3.5',
+            isInteractive ? 'text-inherit' : 'text-gray-400',
+          )}
+        >
           {isDirectory ? <FolderIcon /> : <FileIcon />}
         </span>
         <span className="truncate">{node.name}</span>

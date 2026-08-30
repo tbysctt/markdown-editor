@@ -4,6 +4,7 @@ import type { FileTreeNode } from '../types/electron';
 import {
   createEditorTab,
   type EditorTab,
+  isMarkdownFile,
   type OpenTabOptions,
   type TabEditorHandle,
 } from '../types/workspace';
@@ -205,6 +206,10 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
 
   const openTab = useCallback(
     async (filePath: string, options: OpenTabOptions = {}): Promise<string> => {
+      if (!isMarkdownFile(filePath)) {
+        return '';
+      }
+
       const { preview = false, content } = options;
       const currentTabs = tabsRef.current;
       const existing = currentTabs.find((tab) => tab.filePath === filePath);
