@@ -3,18 +3,39 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
+import { MakerDMG } from '@electron-forge/maker-dmg';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import path from 'node:path';
 
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    appBundleId: 'dev.tobyscott.notebook',
+    icon: path.join(__dirname, 'assets/icon'),
+    darwinDarkModeSupport: true,
+    extendInfo: {
+      NSHumanReadableCopyright: 'Copyright © 2026 Toby Scott',
+      CFBundleDocumentTypes: [
+        {
+          CFBundleTypeName: 'Markdown Document',
+          CFBundleTypeRole: 'Editor',
+          LSHandlerRank: 'Owner',
+          CFBundleTypeExtensions: ['md', 'markdown'],
+          LSItemContentTypes: [
+            'net.daringfireball.markdown',
+            'public.plain-text',
+          ],
+        },
+      ],
+    },
   },
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({}),
     new MakerZIP({}, ['darwin']),
+    new MakerDMG({}, ['darwin']),
     new MakerRpm({}),
     new MakerDeb({}),
   ],

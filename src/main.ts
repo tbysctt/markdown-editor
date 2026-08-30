@@ -36,6 +36,12 @@ if (started) {
   app.quit();
 }
 
+if (process.platform === 'darwin') {
+  app.setName(APP_NAME);
+}
+
+const pendingOpenPaths: string[] = [];
+
 interface WindowState {
   window: BrowserWindow;
   isDirty: boolean;
@@ -215,6 +221,56 @@ const handleFileOpen = async (): Promise<void> => {
   const document: InitialDocument = { path: filePath, content };
 
   focusedWindow.webContents.send(IPC.WINDOW_OPEN_DOCUMENT, document);
+};
+
+const isMarkdownPath = (filePath: string): boolean => {
+  const ext = path.extname(filePath).toLowerCase();
+  return ext === '.md' || ext === '.markdown';
+};
+
+const getLaunchMarkdownPaths = (): string[] => {
+  const seen = new Set<string>();
+  const paths: string[] = [];
+
+  for (const arg of process.argv.slice(1)) {
+    if (arg.startsWith('-') || seen.has(arg) || !isMarkdownPath(arg)) {
+      continue;
+    }
+
+    const resolvedPath = path.resolve(arg);
+    seen.add(resolvedPath);
+    paths.push(resolvedPath);
+  }
+
+  return paths;
+};
+
+const openMarkdownPath = async (filePath: string): Promise<void> => {
+  let content: string;
+
+  try {
+    content = await fs.readFile(filePath, 'utf-8');
+  } catch {
+    return;
+  }
+
+  const document: InitialDocument = { path: filePath, content };
+  const allWindows = BrowserWindow.getAllWindows();
+
+  if (allWindows.length === 0) {
+    createWindow({ initialDocument: document });
+    return;
+  }
+
+  const focusedWindow = BrowserWindow.getFocusedWindow() ?? allWindows[0];
+  const state = getWindowState(focusedWindow);
+
+  if (state && !state.hasDocument) {
+    focusedWindow.webContents.send(IPC.WINDOW_OPEN_DOCUMENT, document);
+    return;
+  }
+
+  createWindow({ initialDocument: document });
 };
 
 const handleFolderOpen = async (): Promise<void> => {
@@ -398,6 +454,8 @@ const buildMenu = (): Menu => {
       accelerator: 'CmdOrCtrl+0',
       click: () => sendMenuAction('zoom-reset'),
     },
+    { type: 'separator' },
+    { role: 'togglefullscreen' },
   ];
 
   const showAbout = (): void => {
@@ -416,10 +474,7 @@ const buildMenu = (): Menu => {
           {
             label: APP_NAME,
             submenu: [
-              {
-                label: `About ${APP_NAME}`,
-                click: showAbout,
-              },
+              { role: 'about' as const },
               { type: 'separator' as const },
               { role: 'services' as const },
               { type: 'separator' as const },
@@ -463,6 +518,19 @@ const buildMenu = (): Menu => {
     },
     { label: 'Format', submenu: formatSubmenu },
     { label: 'View', submenu: viewSubmenu },
+    ...(isMac
+      ? [
+          {
+            label: 'Window',
+            submenu: [
+              { role: 'minimize' as const },
+              { role: 'zoom' as const },
+              { type: 'separator' as const },
+              { role: 'front' as const },
+            ],
+          },
+        ]
+      : []),
     ...(!isMac
       ? [
           {
@@ -1003,12 +1071,47 @@ const createWindow = (options: CreateWindowOptions = {}): BrowserWindow => {
   return window;
 };
 
+app.on('open-file', (event, filePath) => {
+  event.preventDefault();
+
+  if (!isMarkdownPath(filePath)) {
+    return;
+  }
+
+  if (app.isReady()) {
+    void openMarkdownPath(filePath);
+  } else {
+    pendingOpenPaths.push(filePath);
+  }
+});
+
 app.on('ready', () => {
   registerAssetProtocol();
-  app.setName(APP_NAME);
+
+  if (process.platform === 'darwin') {
+    app.setAboutPanelOptions({
+      applicationName: APP_NAME,
+      applicationVersion: packageJson.version,
+      version: packageJson.version,
+      copyright: 'Copyright © 2026 Toby Scott',
+    });
+  }
+
   Menu.setApplicationMenu(buildMenu());
   registerIpcHandlers();
-  createWindow();
+
+  const launchPaths = [
+    ...new Set([...pendingOpenPaths, ...getLaunchMarkdownPaths()]),
+  ];
+  pendingOpenPaths.length = 0;
+
+  if (launchPaths.length > 0) {
+    for (const filePath of launchPaths) {
+      void openMarkdownPath(filePath);
+    }
+  } else {
+    createWindow();
+  }
 });
 
 app.on('window-all-closed', () => {
