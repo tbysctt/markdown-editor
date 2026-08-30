@@ -1,4 +1,5 @@
-export const EDITOR_CONTENT_CLASS = 'editor-content';
+export const EDITOR_CONTENT_CLASS =
+  'editor-content prose prose-neutral max-w-none min-h-[400px] outline-none';
 
 export const editorProps = {
   attributes: {

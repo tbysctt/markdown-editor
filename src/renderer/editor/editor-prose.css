@@ -1,0 +1,228 @@
+/* TipTap-specific prose overrides. Base typography comes from the `prose` class on
+   `.editor-content` (see editorConfig.ts). Sizes mirror the original editor design. */
+
+@layer components {
+  .editor-content > *:first-child {
+    @apply mt-0;
+  }
+
+  /* Heading scale — explicit sizes matching the original editor design */
+  .editor-content.prose :where(h1) {
+    @apply mb-3 mt-6 text-[2rem] font-bold leading-tight;
+  }
+
+  .editor-content.prose :where(h2) {
+    @apply mb-2.5 mt-5 text-2xl font-semibold leading-snug;
+  }
+
+  .editor-content.prose :where(h3) {
+    @apply mb-2 mt-4 text-xl font-semibold;
+  }
+
+  .editor-content.prose :where(h4) {
+    @apply mb-2 mt-3.5 text-lg font-semibold;
+  }
+
+  .editor-content.prose :where(h5) {
+    @apply mb-2 mt-3 text-base font-semibold;
+  }
+
+  .editor-content.prose :where(h6) {
+    @apply mb-2 mt-3 text-sm font-semibold;
+  }
+
+  .editor-content.prose :where(p) {
+    @apply mb-3 text-base leading-relaxed;
+  }
+
+  .editor-content.prose :where(ul:not([data-type='taskList'])),
+  .editor-content.prose :where(ol) {
+    @apply mb-3 pl-6;
+  }
+
+  .editor-content.prose :where(li) {
+    @apply mb-1;
+  }
+
+  .editor-content ul[data-type='taskList'] {
+    @apply mb-3 list-none pl-0;
+  }
+
+  .editor-content ul[data-type='taskList'] li {
+    @apply flex items-start gap-2;
+  }
+
+  .editor-content ul[data-type='taskList'] li > label {
+    @apply mt-0.5 shrink-0;
+  }
+
+  .editor-content ul[data-type='taskList'] li > div {
+    @apply flex-1;
+  }
+
+  .editor-content.prose :where(blockquote:not([data-alert-type])) {
+    @apply mb-3 border-l-4 border-gray-300 bg-gray-50 px-4 py-2 text-gray-600;
+  }
+
+  .editor-content blockquote[data-alert-type] {
+    @apply relative mb-3 rounded-md border-l-4 px-4 py-3;
+    font-style: normal;
+    quotes: none;
+  }
+
+  .editor-content blockquote[data-alert-type] :where(p)::before,
+  .editor-content blockquote[data-alert-type] :where(p)::after {
+    content: none;
+  }
+
+  .editor-content .alert-header {
+    @apply mb-1.5 flex select-none items-center gap-2 text-[0.8125rem] font-bold leading-none;
+  }
+
+  .editor-content .alert-icon {
+    @apply inline-flex h-4 w-4 shrink-0;
+  }
+
+  .editor-content .alert-icon svg {
+    @apply h-full w-full;
+  }
+
+  .editor-content blockquote[data-alert-type] .alert-content :where(p) {
+    @apply mb-3 font-normal not-italic;
+    color: inherit;
+  }
+
+  .editor-content .alert-content > :last-child {
+    @apply mb-0;
+  }
+
+  .editor-content blockquote[data-alert-type='note'] {
+    @apply border-l-blue-600 bg-blue-50 text-blue-900;
+  }
+
+  .editor-content blockquote[data-alert-type='note'] .alert-header {
+    @apply text-blue-600;
+  }
+
+  .editor-content blockquote[data-alert-type='tip'] {
+    @apply border-l-green-600 bg-green-50 text-green-900;
+  }
+
+  .editor-content blockquote[data-alert-type='tip'] .alert-header {
+    @apply text-green-600;
+  }
+
+  .editor-content blockquote[data-alert-type='important'] {
+    @apply border-l-purple-600 bg-purple-50 text-purple-900;
+  }
+
+  .editor-content blockquote[data-alert-type='important'] .alert-header {
+    @apply text-purple-600;
+  }
+
+  .editor-content blockquote[data-alert-type='warning'] {
+    @apply border-l-orange-600 bg-orange-50 text-orange-900;
+  }
+
+  .editor-content blockquote[data-alert-type='warning'] .alert-header {
+    @apply text-orange-600;
+  }
+
+  .editor-content blockquote[data-alert-type='caution'] {
+    @apply border-l-red-600 bg-red-50 text-red-900;
+  }
+
+  .editor-content blockquote[data-alert-type='caution'] .alert-header {
+    @apply text-red-600;
+  }
+
+  .editor-content.prose :where(a) {
+    @apply text-blue-600 underline;
+  }
+
+  .editor-content.prose :where(img) {
+    @apply my-2 h-auto max-w-full rounded;
+  }
+
+  .editor-content.prose :where(table) {
+    @apply mb-3 w-full table-fixed border-collapse;
+  }
+
+  .editor-content.prose :where(th),
+  .editor-content.prose :where(td) {
+    @apply min-w-[80px] border border-gray-300 px-3 py-2 align-top;
+  }
+
+  .editor-content.prose :where(th) {
+    @apply bg-gray-100 text-left font-semibold;
+  }
+
+  .editor-content .selectedCell {
+    @apply bg-blue-100;
+  }
+
+  .editor-content.prose :where(pre:not(.code-block-wrapper pre)) {
+    @apply mb-3 overflow-x-auto rounded-md border border-gray-200 bg-code-bg px-4 py-3 font-mono text-sm leading-normal;
+  }
+
+  .code-block-wrapper pre {
+    @apply m-0 overflow-x-auto bg-transparent px-4 py-3 font-mono text-sm leading-normal;
+  }
+
+  .code-block-wrapper code {
+    @apply block bg-transparent p-0 font-normal;
+  }
+
+  .editor-content.prose :where(code:not(pre code)) {
+    @apply rounded bg-gray-100 px-1 py-0.5 font-mono text-[0.875em] font-normal;
+  }
+
+  .editor-content .tiptap-mathematics-render[data-type='block-math'] {
+    @apply my-3 block cursor-pointer rounded-md border border-gray-200 bg-math-bg px-4 py-3 text-center;
+  }
+
+  .editor-content .tiptap-mathematics-render[data-type='block-math']:hover {
+    @apply border-blue-300 bg-blue-50;
+  }
+
+  .editor-content .tiptap-mathematics-render[data-type='inline-math'] {
+    @apply mx-0.5 inline cursor-pointer align-baseline;
+  }
+
+  .editor-content .tiptap-mathematics-render .katex {
+    font-size: 1.21em;
+    line-height: 1.2;
+  }
+
+  .editor-content .tiptap-mathematics-render .katex svg {
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: inherit;
+  }
+
+  .find-and-replace-result {
+    background-color: rgb(255 225 0 / 0.4);
+  }
+
+  .find-and-replace-result-current {
+    background-color: rgb(255 165 0 / 0.55);
+  }
+
+  .code-block-plain code,
+  .code-block-plain .hljs,
+  .code-block-plain .hljs * {
+    color: var(--color-app-text) !important;
+    background: none !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    text-decoration: none !important;
+  }
+}
+
+@layer utilities {
+  .editor-content.prose :where(code:not(pre code))::before,
+  .editor-content.prose :where(code:not(pre code))::after {
+    content: none;
+  }
+}

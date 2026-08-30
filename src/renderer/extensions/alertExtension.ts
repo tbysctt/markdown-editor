@@ -1,7 +1,7 @@
 import { mergeAttributes, Node } from '@tiptap/core';
 import type { MarkdownToken } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { AlertView } from '../components/AlertView';
+import { AlertView } from '../components/editor/AlertView';
 import { getAlertHeaderSpec } from '../components/icons/AlertIcons';
 
 export const ALERT_TYPES = [
@@ -90,7 +90,7 @@ export const AlertExtension = Node.create<AlertOptions>({
       'blockquote',
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
         'data-alert-type': alertType,
-        class: `alert alert-${alertType}`,
+        class: 'not-prose',
       }),
       getAlertHeaderSpec(alertType),
       ['div', { class: 'alert-content' }, 0],

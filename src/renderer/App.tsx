@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   CommandPalette,
   type CommandPaletteItem,
-} from './components/CommandPalette';
-import { WelcomeScreen } from './components/WelcomeScreen';
+} from './components/shell/CommandPalette';
+import { WelcomeScreen } from './components/shell/WelcomeScreen';
 import { SingleDocumentView } from './components/SingleDocumentView';
 import { WorkspaceView } from './components/WorkspaceView';
 import { getFileName } from './utils/markdown';
 import { addRecentPath, getRecentDisplayPath } from './utils/recentPaths';
 import { collectMarkdownFiles } from './utils/workspaceSearch';
+import { useMenuActions } from './hooks/useMenuActions';
 
 type AppMode =
   | { kind: 'welcome' }
@@ -18,6 +19,10 @@ type AppMode =
       initialDocument?: { path: string; content: string } | null;
     }
   | { kind: 'folder'; rootPath: string };
+
+import type { MenuAction } from '../ipc/channels';
+
+const WELCOME_MENU_ACTIONS = ['command-palette', 'close'] as const satisfies readonly MenuAction[];
 
 const COMMAND_ITEMS: CommandPaletteItem[] = [
   { kind: 'command', id: 'open-folder', label: 'Open folder' },
@@ -203,8 +208,8 @@ export function App() {
     };
   }, [enterSingleMode, mode.kind, openFolder]);
 
-  useEffect(() => {
-    return window.electronAPI.onMenuAction((action) => {
+  const handleWelcomeMenuAction = useCallback(
+    (action: MenuAction) => {
       if (action === 'command-palette') {
         setCommandPaletteOpen(true);
         return;
@@ -217,8 +222,11 @@ export function App() {
       if (action === 'close') {
         window.electronAPI.requestClose();
       }
-    });
-  }, [mode.kind]);
+    },
+    [mode.kind],
+  );
+
+  useMenuActions([...WELCOME_MENU_ACTIONS], handleWelcomeMenuAction);
 
   let content: ReactNode;
 

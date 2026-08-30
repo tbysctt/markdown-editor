@@ -93,7 +93,7 @@ export function insertImageFromRelativePath({
 
 export async function insertImageFromSavedResult(
   editor: Editor,
-  docPath: string,
+  _docPath: string,
   result: { relativePath: string; tempPath?: string; fileUrl?: string },
   addQueuedImage: (image: QueuedImage) => void,
   markDirty: () => void,

@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MenuAction } from '../../ipc/channels';
 import type { FileTreeNode } from '../types/electron';
 import {
   createEditorTab,
   type EditorTab,
+  isMarkdownFile,
   type OpenTabOptions,
-  type TabEditorHandle,
 } from '../types/workspace';
-import { confirmDiscardIfDirty } from '../utils/documentConfirm';
 import { buildWorkspaceTitle, getFileName } from '../utils/markdown';
 import { getParentDirForCreate } from '../utils/explorer';
 import { remapPath } from '../utils/paths';
+import { confirmDiscardIfDirty } from '../utils/documentConfirm';
+import { useTabManager } from './useTabManager';
 
 interface UseWorkspaceOptions {
   rootPath: string;
@@ -34,17 +34,9 @@ function syncWorkspaceWindowTitle(
 }
 
 export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
-  const [tabs, setTabs] = useState<EditorTab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tree, setTree] = useState<FileTreeNode | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const tabsRef = useRef(tabs);
-  const activeTabIdRef = useRef(activeTabId);
   const treeRef = useRef(tree);
-  const editorRegistryRef = useRef(new Map<string, TabEditorHandle>());
-
-  tabsRef.current = tabs;
-  activeTabIdRef.current = activeTabId;
   treeRef.current = tree;
 
   const refreshTree = useCallback(async () => {
@@ -56,56 +48,46 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
     void refreshTree();
   }, [refreshTree]);
 
-  const registerTabEditor = useCallback((handle: TabEditorHandle) => {
-    editorRegistryRef.current.set(handle.tabId, handle);
-  }, []);
-
-  const unregisterTabEditor = useCallback((tabId: string) => {
-    editorRegistryRef.current.delete(tabId);
-  }, []);
-
-  const getActiveHandle = useCallback((): TabEditorHandle | null => {
-    if (!activeTabIdRef.current) {
-      return null;
-    }
-    return editorRegistryRef.current.get(activeTabIdRef.current) ?? null;
-  }, []);
-
-  const setTabDirty = useCallback(
-    (tabId: string, dirty: boolean) => {
-      setTabs((current) => {
-        const next = current.map((tab) =>
-          tab.id === tabId
-            ? { ...tab, dirty, isPreview: dirty ? false : tab.isPreview }
-            : tab,
-        );
-        syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
-        return next;
-      });
-    },
-    [rootPath],
-  );
-
-  const updateTabFilePath = useCallback(
-    (tabId: string, newPath: string) => {
-      setTabs((current) => {
-        const next = current.map((tab) =>
-          tab.id === tabId
-            ? {
-                ...tab,
-                filePath: newPath,
-                dirty: false,
-                isPreview: false,
-              }
-            : tab,
-        );
-        syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
-        return next;
-      });
+  const tabManager = useTabManager({
+    syncWindowTitle: (tabs, activeTabId) =>
+      syncWorkspaceWindowTitle(rootPath, tabs, activeTabId),
+    mapTabOnDirty: (tab, dirty) => ({
+      ...tab,
+      dirty,
+      isPreview: dirty ? false : tab.isPreview,
+    }),
+    mapTabOnPathUpdate: (tab, newPath) => ({
+      ...tab,
+      filePath: newPath,
+      dirty: false,
+      isPreview: false,
+    }),
+    onAfterPathUpdate: () => {
       void refreshTree();
     },
-    [refreshTree, rootPath],
-  );
+    clearDirtyOnSave: true,
+  });
+
+  const {
+    tabs,
+    activeTabId,
+    activeTab,
+    tabsRef,
+    activeTabIdRef,
+    editorRegistryRef,
+    setTabs,
+    setActiveTabId,
+    syncTitle,
+    registerTabEditor,
+    unregisterTabEditor,
+    getActiveHandle,
+    setTabDirty,
+    updateTabFilePath,
+    switchTab,
+    closeTab,
+    saveActiveDocument,
+    saveActiveDocumentAs,
+  } = tabManager;
 
   useEffect(() => {
     void window.electronAPI.startFolderWatch(rootPath);
@@ -161,7 +143,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
       unsubRename();
       void window.electronAPI.stopFolderWatch();
     };
-  }, [refreshTree, rootPath]);
+  }, [refreshTree, rootPath, setTabs]);
 
   const pinTab = useCallback(
     (tabId: string) => {
@@ -169,42 +151,19 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
         const next = current.map((tab) =>
           tab.id === tabId ? { ...tab, isPreview: false } : tab,
         );
-        syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
+        syncTitle(next, activeTabIdRef.current);
         return next;
       });
     },
-    [rootPath],
+    [activeTabIdRef, setTabs, syncTitle],
   );
-
-  const saveActiveDocument = useCallback(async (): Promise<boolean> => {
-    const handle = getActiveHandle();
-    if (!handle) {
-      return false;
-    }
-
-    const saved = await handle.saveDocument();
-    if (saved) {
-      setTabDirty(handle.tabId, false);
-    }
-    return saved;
-  }, [getActiveHandle, setTabDirty]);
-
-  const switchTab = useCallback((tabId: string) => {
-    if (tabId === activeTabIdRef.current) {
-      return;
-    }
-
-    const targetTab = tabsRef.current.find((tab) => tab.id === tabId);
-    if (!targetTab) {
-      return;
-    }
-
-    setActiveTabId(tabId);
-    syncWorkspaceWindowTitle(rootPath, tabsRef.current, tabId);
-  }, [rootPath]);
 
   const openTab = useCallback(
     async (filePath: string, options: OpenTabOptions = {}): Promise<string> => {
+      if (!isMarkdownFile(filePath)) {
+        return '';
+      }
+
       const { preview = false, content } = options;
       const currentTabs = tabsRef.current;
       const existing = currentTabs.find((tab) => tab.filePath === filePath);
@@ -235,7 +194,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
         );
         setTabs(nextTabs);
         setActiveTabId(pinnedTab.id);
-        syncWorkspaceWindowTitle(rootPath, nextTabs, pinnedTab.id);
+        syncTitle(nextTabs, pinnedTab.id);
         return pinnedTab.id;
       }
 
@@ -248,7 +207,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
           const nextTabs = [...pinnedTabs, newTab];
           setTabs(nextTabs);
           setActiveTabId(newTab.id);
-          syncWorkspaceWindowTitle(rootPath, nextTabs, newTab.id);
+          syncTitle(nextTabs, newTab.id);
           return newTab.id;
         }
 
@@ -265,7 +224,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
         );
         setTabs(nextTabs);
         setActiveTabId(reusedTab.id);
-        syncWorkspaceWindowTitle(rootPath, nextTabs, reusedTab.id);
+        syncTitle(nextTabs, reusedTab.id);
         return reusedTab.id;
       }
 
@@ -273,103 +232,11 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
       const nextTabs = [...currentTabs, newTab];
       setTabs(nextTabs);
       setActiveTabId(newTab.id);
-      syncWorkspaceWindowTitle(rootPath, nextTabs, newTab.id);
+      syncTitle(nextTabs, newTab.id);
       return newTab.id;
     },
-    [pinTab, rootPath, switchTab],
+    [pinTab, setActiveTabId, setTabs, switchTab, syncTitle, tabsRef],
   );
-
-  const closeTab = useCallback(
-    async (tabId: string): Promise<boolean> => {
-      const tabToClose = tabsRef.current.find((tab) => tab.id === tabId);
-      if (!tabToClose) {
-        return false;
-      }
-
-      const handle = editorRegistryRef.current.get(tabId);
-      const isDirty = handle?.dirty ?? tabToClose.dirty;
-      const result = await confirmDiscardIfDirty(isDirty);
-      if (result === 'cancel') {
-        return false;
-      }
-
-      const isActive = tabId === activeTabIdRef.current;
-
-      if (result === 'save') {
-        if (handle) {
-          const saved = await handle.saveDocument();
-          if (!saved) {
-            return false;
-          }
-        }
-      }
-
-      const filtered = tabsRef.current.filter((tab) => tab.id !== tabId);
-      setTabs(filtered);
-
-      if (filtered.length === 0) {
-        setActiveTabId(null);
-        syncWorkspaceWindowTitle(rootPath, filtered, null);
-        return true;
-      }
-
-      if (isActive) {
-        const closedIndex = tabsRef.current.findIndex(
-          (tab) => tab.id === tabId,
-        );
-        const nextTab = filtered[Math.min(closedIndex, filtered.length - 1)];
-        setActiveTabId(nextTab.id);
-        syncWorkspaceWindowTitle(rootPath, filtered, nextTab.id);
-      } else {
-        syncWorkspaceWindowTitle(rootPath, filtered, activeTabIdRef.current);
-      }
-
-      return true;
-    },
-    [rootPath],
-  );
-
-  const saveActiveDocumentAs = useCallback(async (): Promise<boolean> => {
-    const handle = getActiveHandle();
-    if (!handle) {
-      return false;
-    }
-
-    return handle.saveDocumentAs();
-  }, [getActiveHandle]);
-
-  const closeActiveTab = useCallback(async () => {
-    if (!activeTabIdRef.current) {
-      window.electronAPI.requestClose();
-      return;
-    }
-    await closeTab(activeTabIdRef.current);
-  }, [closeTab]);
-
-  const saveAllDirtyTabs = useCallback(async (): Promise<boolean> => {
-    for (const tab of tabsRef.current) {
-      if (!tab.dirty) {
-        continue;
-      }
-
-      const handle = editorRegistryRef.current.get(tab.id);
-      if (!handle) {
-        continue;
-      }
-
-      const saved = await handle.saveDocument();
-      if (!saved) {
-        return false;
-      }
-    }
-
-    setTabs((current) => {
-      const next = current.map((tab) => ({ ...tab, dirty: false }));
-      syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
-      return next;
-    });
-    return true;
-  }, [rootPath]);
 
   const getCreateParentDir = useCallback(
     (overrideParentDir?: string) => {
@@ -460,13 +327,13 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
         if (remaining.length > 0) {
           const nextTab = remaining[remaining.length - 1];
           setActiveTabId(nextTab.id);
-          syncWorkspaceWindowTitle(rootPath, remaining, nextTab.id);
+          syncTitle(remaining, nextTab.id);
         } else {
           setActiveTabId(null);
-          syncWorkspaceWindowTitle(rootPath, remaining, null);
+          syncTitle(remaining, null);
         }
       } else {
-        syncWorkspaceWindowTitle(rootPath, remaining, activeTabIdRef.current);
+        syncTitle(remaining, activeTabIdRef.current);
       }
 
       await window.electronAPI.deleteFolderEntry({ rootPath, targetPath });
@@ -484,7 +351,17 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
       await refreshTree();
       return true;
     },
-    [refreshTree, rootPath, selectedPath],
+    [
+      activeTabIdRef,
+      editorRegistryRef,
+      refreshTree,
+      rootPath,
+      selectedPath,
+      setActiveTabId,
+      setTabs,
+      syncTitle,
+      tabsRef,
+    ],
   );
 
   const renameExplorerEntry = useCallback(
@@ -501,7 +378,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
             ...tab,
             filePath: remapPath(tab.filePath, oldPath, result.path),
           }));
-          syncWorkspaceWindowTitle(rootPath, next, activeTabIdRef.current);
+          syncTitle(next, activeTabIdRef.current);
           return next;
         });
 
@@ -515,7 +392,7 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
         return false;
       }
     },
-    [refreshTree, rootPath],
+    [activeTabIdRef, refreshTree, rootPath, setTabs, syncTitle],
   );
 
   const renameTab = useCallback(
@@ -526,51 +403,10 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
       }
       return renameExplorerEntry(tab.filePath, newName);
     },
-    [renameExplorerEntry],
+    [renameExplorerEntry, tabsRef],
   );
 
-  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
   const activeFilePath = activeTab?.filePath ?? null;
-
-  useEffect(() => {
-    syncWorkspaceWindowTitle(rootPath, tabs, activeTabId);
-  }, [activeTabId, rootPath, tabs]);
-
-  useEffect(() => {
-    const unsubscribe = window.electronAPI.onMenuAction(
-      async (action: MenuAction) => {
-        switch (action) {
-          case 'save':
-            await saveActiveDocument();
-            break;
-          case 'save-as':
-            await saveActiveDocumentAs();
-            break;
-          case 'save-and-close': {
-            const saved = await saveAllDirtyTabs();
-            if (saved) {
-              window.electronAPI.notifyReadyToClose();
-            } else {
-              window.electronAPI.notifyAbortClose();
-            }
-            break;
-          }
-          case 'close':
-            await closeActiveTab();
-            break;
-          default:
-            break;
-        }
-      },
-    );
-
-    return unsubscribe;
-  }, [
-    closeActiveTab,
-    saveActiveDocument,
-    saveActiveDocumentAs,
-    saveAllDirtyTabs,
-  ]);
 
   return {
     tabs,
@@ -589,7 +425,6 @@ export function useWorkspace({ rootPath }: UseWorkspaceOptions) {
     closeTab,
     switchTab,
     pinTab,
-    closeActiveTab,
     saveActiveDocument,
     saveActiveDocumentAs,
     registerTabEditor,

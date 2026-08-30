@@ -1,17 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { assertPathInsideRoot } from '../shared/paths';
 
-const INVALID_NAME_CHARS = /[<>:"/\\|?*]/;
-
-export function assertPathInsideRoot(rootPath: string, targetPath: string): void {
-  const resolvedRoot = path.resolve(rootPath);
-  const resolvedTarget = path.resolve(targetPath);
-  const relative = path.relative(resolvedRoot, resolvedTarget);
-
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    throw new Error('Path is outside the workspace root');
-  }
-}
+const INVALID_NAME_CHARS = /[/\\?%*:|"<>]/;
 
 export function validateEntryName(name: string): string {
   const trimmed = name.trim();

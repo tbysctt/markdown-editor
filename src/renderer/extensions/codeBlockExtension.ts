@@ -1,7 +1,7 @@
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
 import { PluginKey } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { CodeBlockView } from '../components/CodeBlockView';
+import { CodeBlockView } from '../components/editor/CodeBlockView';
 import { lowlight } from '../utils/codeLanguages';
 import { PlainTextAwareLowlightPlugin } from './plainTextLowlightPlugin';
 
