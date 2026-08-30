@@ -1,4 +1,4 @@
-import Image from '@tiptap/extension-image';
+import { Image } from '@tiptap/extension-image';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { ImageView } from '../components/ImageView';
 import type { QueuedImage } from '../utils/markdown';

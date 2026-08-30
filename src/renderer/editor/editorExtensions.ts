@@ -1,9 +1,9 @@
 import { FindAndReplace } from '@tiptap/extension-find-and-replace';
-import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
+import { StarterKit } from '@tiptap/starter-kit';
+import { Link } from '@tiptap/extension-link';
 import { ImageExtension } from '../extensions/imageExtension';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
+import { TaskList } from '@tiptap/extension-task-list';
+import { TaskItem } from '@tiptap/extension-task-item';
 import { TableKit } from '@tiptap/extension-table';
 import { CharacterCount } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';

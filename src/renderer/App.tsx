@@ -41,7 +41,7 @@ function buildFileItems(filePaths: string[]): CommandPaletteItem[] {
 
 export function App() {
   const [mode, setMode] = useState<AppMode>({ kind: 'welcome' });
-  const [singleSessionKey, setSingleSessionKey] = useState(0);
+  const [, setSingleSessionKey] = useState(0);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [paletteFilesLoading, setPaletteFilesLoading] = useState(false);
   const [paletteFilePaths, setPaletteFilePaths] = useState<string[]>([]);
