@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { assertPathInsideRoot } from '../shared/paths';
 
+const INVALID_NAME_CHARS = /[/\\?%*:|"<>]/;
+
 export function validateEntryName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) {
