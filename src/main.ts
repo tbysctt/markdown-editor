@@ -5,13 +5,10 @@ import {
   dialog,
   ipcMain,
   Menu,
-  net,
-  protocol,
   shell,
 } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
 import started from 'electron-squirrel-startup';
 import { IPC } from './ipc/channels';
 import type { DiscardChoice, DeleteConfirmChoice, WindowMode } from './ipc/channels';
@@ -29,6 +26,18 @@ import {
   renameEntry,
   renamePath,
 } from './main/folderOperations';
+import {
+  assetsRelativePath,
+  ensureAssetsDir,
+  pastedImageFileName,
+  registerAssetProtocol,
+  registerAssetProtocolSchemes,
+  resolveAbsoluteAssetUrl,
+  resolveAssetUrlForDocument,
+  toAssetProtocolUrl,
+  uniqueAssetName,
+  getTempAssetsDir,
+} from './main/assets';
 import packageJson from '../package.json';
 import { APP_NAME } from './shared/appMeta';
 
@@ -78,32 +87,7 @@ const IMAGE_FILTERS = [
   { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] },
 ];
 
-const ASSETS_DIR_NAME = 'assets';
-const ASSET_PROTOCOL = 'notebook-asset';
-
-protocol.registerSchemesAsPrivileged([
-  {
-    scheme: ASSET_PROTOCOL,
-    privileges: {
-      standard: true,
-      secure: true,
-      supportFetchAPI: true,
-      corsEnabled: true,
-      stream: true,
-    },
-  },
-]);
-
-const toAssetProtocolUrl = (absolutePath: string): string =>
-  `${ASSET_PROTOCOL}://asset/${encodeURIComponent(absolutePath)}`;
-
-const registerAssetProtocol = (): void => {
-  protocol.handle(ASSET_PROTOCOL, (request) => {
-    const parsed = new URL(request.url);
-    const absolutePath = decodeURIComponent(parsed.pathname.slice(1));
-    return net.fetch(pathToFileURL(absolutePath).href);
-  });
-};
+registerAssetProtocolSchemes();
 
 const getFocusedWindow = (): BrowserWindow => {
   const focused = BrowserWindow.getFocusedWindow();
@@ -128,36 +112,6 @@ const getWindowState = (window: BrowserWindow): WindowState | undefined =>
 
 const sendMenuAction = (action: string): void => {
   getFocusedWindow().webContents.send(IPC.MENU_ACTION, action);
-};
-
-const ensureAssetsDir = async (docPath: string): Promise<string> => {
-  const assetsDir = path.join(path.dirname(docPath), ASSETS_DIR_NAME);
-  await fs.mkdir(assetsDir, { recursive: true });
-  return assetsDir;
-};
-
-const assetsRelativePath = (fileName: string): string =>
-  `${ASSETS_DIR_NAME}/${fileName}`;
-
-const pastedImageFileName = (): string => {
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, '0');
-  const timestamp = [
-    now.getFullYear(),
-    pad(now.getMonth() + 1),
-    pad(now.getDate()),
-    pad(now.getHours()),
-    pad(now.getMinutes()),
-    pad(now.getSeconds()),
-  ].join('');
-
-  return `Pasted image ${timestamp}.png`;
-};
-
-const uniqueAssetName = (fileName: string): string => {
-  const ext = path.extname(fileName);
-  const base = path.basename(fileName, ext);
-  return `${base}-${Date.now()}${ext}`;
 };
 
 const renderPrintableDocument = async (
@@ -743,7 +697,7 @@ const registerIpcHandlers = (): void => {
   );
 
   ipcMain.handle(IPC.FILE_STAGE_IMAGE, async (_event, sourcePath: string) => {
-    const tempDir = path.join(app.getPath('temp'), 'notebook-assets');
+    const tempDir = getTempAssetsDir();
     await fs.mkdir(tempDir, { recursive: true });
     const fileName = uniqueAssetName(path.basename(sourcePath));
     const destPath = path.join(tempDir, fileName);
@@ -758,14 +712,13 @@ const registerIpcHandlers = (): void => {
   ipcMain.handle(
     IPC.FILE_RESOLVE_ASSET_URL,
     (_event, docPath: string, relativePath: string) => {
-      const absolutePath = path.join(path.dirname(docPath), relativePath);
-      return toAssetProtocolUrl(absolutePath);
+      return resolveAssetUrlForDocument(docPath, relativePath);
     },
   );
 
   ipcMain.handle(
     IPC.FILE_RESOLVE_ABSOLUTE_ASSET_URL,
-    (_event, absolutePath: string) => toAssetProtocolUrl(absolutePath),
+    (_event, absolutePath: string) => resolveAbsoluteAssetUrl(absolutePath),
   );
 
   ipcMain.handle(
@@ -804,7 +757,7 @@ const registerIpcHandlers = (): void => {
       const pngBuffer = image.toPNG();
 
       if (!docPath) {
-        const tempDir = path.join(app.getPath('temp'), 'notebook-assets');
+        const tempDir = getTempAssetsDir();
         await fs.mkdir(tempDir, { recursive: true });
         const destPath = path.join(tempDir, fileName);
         await fs.writeFile(destPath, pngBuffer);
@@ -836,7 +789,7 @@ const registerIpcHandlers = (): void => {
       const resolvedName = uniqueAssetName(fileName || 'pasted-image.png');
 
       if (!docPath) {
-        const tempDir = path.join(app.getPath('temp'), 'notebook-assets');
+        const tempDir = getTempAssetsDir();
         await fs.mkdir(tempDir, { recursive: true });
         const destPath = path.join(tempDir, resolvedName);
         await fs.writeFile(destPath, buffer);

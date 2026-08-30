@@ -10,7 +10,7 @@ import type {
   QueuedImageCopy,
   SaveFileResult,
   StagedImageResult,
-} from './renderer/types/electron';
+} from './shared/ipc-types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openFile: (): Promise<OpenFileResult | null> =>

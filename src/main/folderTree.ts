@@ -22,7 +22,21 @@ const compareEntries = (
   return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 };
 
-export async function readDirectoryTree(dirPath: string): Promise<FileTreeNode> {
+export async function readDirectoryTree(
+  dirPath: string,
+  depth = 0,
+  maxDepth = 12,
+  maxEntries = 5000,
+): Promise<FileTreeNode> {
+  if (depth > maxDepth) {
+    return {
+      name: path.basename(dirPath),
+      path: dirPath,
+      type: 'directory',
+      children: [],
+    };
+  }
+
   const name = path.basename(dirPath);
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   entries.sort(compareEntries);
@@ -30,10 +44,14 @@ export async function readDirectoryTree(dirPath: string): Promise<FileTreeNode> 
   const children: FileTreeNode[] = [];
 
   for (const entry of entries) {
+    if (children.length >= maxEntries) {
+      break;
+    }
+
     const entryPath = path.join(dirPath, entry.name);
 
     if (entry.isDirectory()) {
-      children.push(await readDirectoryTree(entryPath));
+      children.push(await readDirectoryTree(entryPath, depth + 1, maxDepth, maxEntries));
     } else if (entry.isFile()) {
       children.push({
         name: entry.name,

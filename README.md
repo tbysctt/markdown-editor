@@ -8,6 +8,10 @@ Imagine... Obsidian, VSCode, and Microsoft Word had a baby... And it was open so
 
 ![](docs/demo-screenshot.png)
 
+## Documentation
+
+- [Architecture](docs/architecture.md) — process model, module layout, and conventions
+
 ## Developing
 
 ```bash

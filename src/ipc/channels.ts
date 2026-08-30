@@ -37,8 +37,6 @@ export const IPC = {
   FOLDER_RENAME: 'folder:rename',
   FILE_RENAME: 'file:rename',
   MENU_ACTION: 'menu:action',
-  APP_BEFORE_CLOSE: 'app:before-close',
-  APP_CLOSE_RESPONSE: 'app:close-response',
 } as const;
 
 export type MenuAction =

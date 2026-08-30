@@ -4,16 +4,16 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --color-app-text: #1a1a1a;
-  --color-app-bg: #f0f2f5;
-  --color-app-sidebar: #f8f9fb;
-  --color-app-muted: #44546f;
-  --color-app-border: #dfe1e6;
-  --color-app-hover: #eef2f7;
-  --color-app-surface-hover: #f0f2f5;
-  --color-app-tab-bar: #eceef2;
-  --color-code-bg: #f6f8fa;
-  --color-math-bg: #fafafa;
+  --color-app-text: var(--color-app-text);
+  --color-app-bg: var(--color-app-bg);
+  --color-app-sidebar: var(--color-app-sidebar);
+  --color-app-muted: var(--color-app-muted);
+  --color-app-border: var(--color-app-border);
+  --color-app-hover: var(--color-app-hover);
+  --color-app-surface-hover: var(--color-app-surface-hover);
+  --color-app-tab-bar: var(--color-app-tab-bar);
+  --color-code-bg: var(--color-code-bg);
+  --color-math-bg: var(--color-math-bg);
 }
 
 @layer base {
