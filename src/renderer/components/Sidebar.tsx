@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { cn } from '../utils/cn';
 import { FileTree } from './FileTree';
 import { SidebarSearch } from './SidebarSearch';
 import {
@@ -40,6 +41,12 @@ interface ContextMenuState {
   node: FileTreeNode;
   isRoot: boolean;
 }
+
+const viewBtnClass =
+  'inline-flex h-6 min-w-6 items-center justify-center rounded border-none bg-transparent px-1 text-gray-500 hover:bg-gray-100 hover:text-[#1a1a1a] [&_svg]:h-3.5 [&_svg]:w-3.5';
+
+const actionBtnClass =
+  'inline-flex h-6 min-w-6 items-center justify-center rounded border-none bg-transparent px-1 text-xs leading-none text-gray-600 hover:bg-gray-100 hover:text-[#1a1a1a] [&_svg]:h-3.5 [&_svg]:w-3.5';
 
 export function Sidebar({
   rootPath,
@@ -101,15 +108,13 @@ export function Sidebar({
   }, [contextMenu, onDelete, onNewFile, onNewFolder, onRename]);
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <div className="sidebar-header-row">
-          <div className="sidebar-view-toggle">
+    <aside className="flex w-[260px] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-[#f8f9fb]">
+      <div className="shrink-0 border-b border-gray-200 bg-white px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex shrink-0 items-center gap-0.5">
             <button
               type="button"
-              className={`sidebar-view-btn${
-                view === 'explorer' ? ' sidebar-view-btn--active' : ''
-              }`}
+              className={cn(viewBtnClass, view === 'explorer' && 'bg-gray-200 text-[#1a1a1a]')}
               title="Explorer"
               aria-label="Explorer"
               aria-pressed={view === 'explorer'}
@@ -119,9 +124,7 @@ export function Sidebar({
             </button>
             <button
               type="button"
-              className={`sidebar-view-btn${
-                view === 'search' ? ' sidebar-view-btn--active' : ''
-              }`}
+              className={cn(viewBtnClass, view === 'search' && 'bg-gray-200 text-[#1a1a1a]')}
               title="Search"
               aria-label="Search"
               aria-pressed={view === 'search'}
@@ -130,14 +133,14 @@ export function Sidebar({
               <SearchIcon />
             </button>
           </div>
-          <span className="sidebar-title">
+          <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-gray-700">
             {view === 'explorer' ? 'Explorer' : 'Search'}
           </span>
           {view === 'explorer' && (
-            <div className="sidebar-actions">
+            <div className="flex shrink-0 items-center gap-0.5">
               <button
                 type="button"
-                className="sidebar-action-btn"
+                className={actionBtnClass}
                 title="New File"
                 aria-label="New File"
                 onClick={() => onNewFile()}
@@ -146,7 +149,7 @@ export function Sidebar({
               </button>
               <button
                 type="button"
-                className="sidebar-action-btn"
+                className={actionBtnClass}
                 title="New Folder"
                 aria-label="New Folder"
                 onClick={() => onNewFolder()}
@@ -157,7 +160,7 @@ export function Sidebar({
           )}
         </div>
       </div>
-      <div className="sidebar-content">
+      <div className="flex-1 overflow-auto py-1">
         {view === 'explorer' ? (
           <FileTree
             rootPath={rootPath}

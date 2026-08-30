@@ -46,14 +46,18 @@ export function Toolbar({
   }, [editor]);
 
   return (
-    <div className="toolbar" role="toolbar" aria-label="Formatting">
-      <div className="toolbar-group">
+    <div
+      className="flex min-h-10 flex-wrap items-center gap-0.5 px-3 py-1.5"
+      role="toolbar"
+      aria-label="Formatting"
+    >
+      <div className="flex items-center gap-0.5">
         <TextTypeDropdown editor={editor} />
       </div>
 
-      <div className="toolbar-divider" aria-hidden="true" />
+      <div className="mx-1.5 h-6 w-px shrink-0 bg-[#dfe1e6]" aria-hidden="true" />
 
-      <div className="toolbar-group">
+      <div className="flex items-center gap-0.5">
         <ToolbarIconButton
           title="Bold"
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -77,9 +81,9 @@ export function Toolbar({
         </ToolbarIconButton>
       </div>
 
-      <div className="toolbar-divider" aria-hidden="true" />
+      <div className="mx-1.5 h-6 w-px shrink-0 bg-[#dfe1e6]" aria-hidden="true" />
 
-      <div className="toolbar-group">
+      <div className="flex items-center gap-0.5">
         <ListTypeDropdown editor={editor} />
         <ToolbarIconButton
           title="Quote"
@@ -91,9 +95,9 @@ export function Toolbar({
         <AlertTypeDropdown editor={editor} />
       </div>
 
-      <div className="toolbar-divider" aria-hidden="true" />
+      <div className="mx-1.5 h-6 w-px shrink-0 bg-[#dfe1e6]" aria-hidden="true" />
 
-      <div className="toolbar-group">
+      <div className="flex items-center gap-0.5">
         <ToolbarIconButton
           title="Insert link"
           onClick={onInsertLink}

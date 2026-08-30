@@ -18,6 +18,7 @@ import {
   setImageSrcResolver,
 } from '../extensions/imageExtension';
 import { editorProps } from '../editor/editorConfig';
+import { cn } from '../utils/cn';
 import { useTabDocument } from '../hooks/useTabDocument';
 import { getPrintableHtml } from '../utils/print';
 import { getFileName, prepareMarkdownForEditor, type QueuedImage } from '../utils/markdown';
@@ -412,12 +413,19 @@ export function WorkspaceTabPanel({
         return;
       }
 
-      editor
-        .chain()
-        .setNodeSelection(mathEditPos)
-        .updateBlockMath({ latex })
-        .focus()
-        .run();
+      const node = editor.state.doc.nodeAt(mathEditPos);
+      if (!node) {
+        return;
+      }
+
+      const chain = editor.chain().setNodeSelection(mathEditPos);
+      if (node.type.name === 'inlineMath') {
+        chain.updateInlineMath({ latex });
+      } else {
+        chain.updateBlockMath({ latex });
+      }
+      chain.focus().run();
+
       setShowMathDialog(false);
       setMathEditPos(null);
       setMathInitialLatex('');
@@ -538,13 +546,14 @@ export function WorkspaceTabPanel({
 
   return (
     <div
-      className={`workspace-tab-panel${
-        isActive ? '' : ' workspace-tab-panel--hidden'
-      }`}
+      className={cn(
+        'absolute inset-0 flex min-h-0 flex-1 flex-col',
+        !isActive && 'hidden',
+      )}
       role="tabpanel"
       aria-hidden={!isActive}
     >
-      <header className="editor-header">
+      <header className="relative shrink-0 border-b border-gray-200 bg-white">
         <Toolbar
           editor={editor}
           onInsertLink={() => setShowLinkDialog(true)}
@@ -568,9 +577,9 @@ export function WorkspaceTabPanel({
         )}
       </header>
 
-      <main className="editor-main">
+      <main className="flex-1 overflow-auto px-4 py-8">
         <div
-          className="editor-paper"
+          className="mx-auto min-h-[calc(100vh-10rem)] max-w-[800px] origin-top rounded bg-white px-16 py-12 shadow-sm transition-transform duration-150"
           style={{ transform: `scale(${zoom / 100})` }}
         >
           <EditorContent editor={editor} />

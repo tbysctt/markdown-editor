@@ -10,16 +10,23 @@ import { Markdown } from '@tiptap/markdown';
 import type { Extensions } from '@tiptap/react';
 import { AlertExtension } from '../extensions/alertExtension';
 import { CodeBlockExtension } from '../extensions/codeBlockExtension';
-import { MathExtension } from '../extensions/mathExtension';
+import {
+  BlockMathExtension,
+  InlineMathExtension,
+} from '../extensions/mathExtension';
 
 export function createEditorExtensions(): Extensions {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4, 5, 6] },
       codeBlock: false,
+      code: {
+        HTMLAttributes: { class: 'not-prose' },
+      },
     }),
     CodeBlockExtension,
-    MathExtension,
+    BlockMathExtension,
+    InlineMathExtension,
     AlertExtension,
     Link.configure({
       openOnClick: false,

@@ -48,11 +48,11 @@ export function FileTree({
   }, [revealPath, tree]);
 
   if (!tree) {
-    return <div className="file-tree-loading">Loading…</div>;
+    return <div className="px-3 py-3 text-[0.8125rem] text-gray-500">Loading…</div>;
   }
 
   return (
-    <div ref={containerRef} className="file-tree">
+    <div ref={containerRef}>
       <FileTreeNodeRow
         node={tree}
         depth={0}

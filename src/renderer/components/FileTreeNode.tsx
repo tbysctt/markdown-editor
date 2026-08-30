@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FileTreeNode } from '../types/electron';
 import type { OpenTabOptions } from '../types/workspace';
 import { isMarkdownFile } from '../types/workspace';
+import { cn } from '../utils/cn';
 import { isPathWithinDirectory } from '../utils/explorer';
 import {
   ChevronDownIcon,
@@ -93,21 +94,17 @@ export function FileTreeNodeRow({
     onOpenFile(node.path, { preview: false });
   };
 
-  const classNames = [
-    'file-tree-item',
-    isDirectory ? 'file-tree-item--directory' : 'file-tree-item--file',
-    !isDirectory && !isMarkdown ? 'file-tree-item--disabled' : '',
-    isActive ? 'file-tree-item--active' : '',
-    isSelected ? 'file-tree-item--selected' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
   return (
-    <div className="file-tree-node">
+    <div>
       <button
         type="button"
-        className={classNames}
+        className={cn(
+          'flex w-full items-center gap-1 rounded-none border-none bg-transparent py-1 pr-2 text-left text-[0.8125rem] text-gray-700',
+          !isDirectory && !isMarkdown && 'cursor-default text-gray-400',
+          isDirectory || isMarkdown ? 'cursor-pointer hover:bg-[#eef2f7]' : '',
+          isActive && 'bg-blue-100 text-blue-700',
+          isSelected && !isActive && 'bg-gray-200',
+        )}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         data-path={node.path}
         onClick={handleClick}
@@ -118,18 +115,18 @@ export function FileTreeNodeRow({
         }}
         aria-expanded={isDirectory ? expanded : undefined}
       >
-        <span className="file-tree-chevron">
+        <span className="w-3 shrink-0 text-gray-500 [&_svg]:block [&_svg]:h-3 [&_svg]:w-3">
           {isDirectory ? (
             expanded ? <ChevronDownIcon /> : <ChevronRightIcon />
           ) : null}
         </span>
-        <span className="file-tree-icon">
+        <span className="shrink-0 [&_svg]:block [&_svg]:h-3.5 [&_svg]:w-3.5">
           {isDirectory ? <FolderIcon /> : <FileIcon />}
         </span>
-        <span className="file-tree-name">{node.name}</span>
+        <span className="truncate">{node.name}</span>
       </button>
       {isDirectory && expanded && node.children && (
-        <div className="file-tree-children">
+        <div>
           {node.children.map((child) => (
             <FileTreeNodeRow
               key={child.path}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { cn } from '../utils/cn';
 
 export interface ContextMenuItem {
   id: string;
@@ -51,7 +52,7 @@ export function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="context-menu"
+      className="fixed z-[1000] min-w-40 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
       style={{ top: y, left: x }}
       role="menu"
     >
@@ -60,9 +61,11 @@ export function ContextMenu({
           key={item.id}
           type="button"
           role="menuitem"
-          className={`context-menu-item${
-            item.danger ? ' context-menu-item--danger' : ''
-          }`}
+          className={cn(
+            'block w-full cursor-pointer border-none bg-transparent px-3 py-1.5 text-left text-[0.8125rem] text-gray-700 hover:bg-gray-100',
+            item.danger && 'text-red-600 hover:bg-red-50',
+            item.disabled && 'cursor-default text-gray-400 hover:bg-transparent',
+          )}
           disabled={item.disabled}
           onClick={() => {
             if (item.disabled) {

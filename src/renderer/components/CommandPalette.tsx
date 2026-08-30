@@ -4,6 +4,7 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react';
+import { cn } from '../utils/cn';
 import { rankByFuzzyMatch } from '../utils/fuzzyMatch';
 
 export type CommandPaletteItem =
@@ -42,9 +43,7 @@ export function CommandPalette({
   }, [query, items]);
 
   useEffect(() => {
-    const activeItem = listRef.current?.querySelector(
-      '.command-palette-item--active',
-    );
+    const activeItem = listRef.current?.querySelector('[data-active="true"]');
     activeItem?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, items]);
 
@@ -84,12 +83,12 @@ export function CommandPalette({
 
   return (
     <div
-      className="dialog-overlay command-palette-overlay"
+      className="fixed inset-0 z-[110] flex items-start justify-center bg-black/40 pt-[10vh]"
       role="presentation"
       onClick={onClose}
     >
       <div
-        className="command-palette"
+        className="w-full max-w-[560px] overflow-hidden rounded-xl bg-white shadow-2xl"
         role="dialog"
         aria-label="Quick Open"
         onClick={(event) => event.stopPropagation()}
@@ -97,18 +96,22 @@ export function CommandPalette({
         <input
           ref={inputRef}
           type="text"
-          className="command-palette-input"
+          className="w-full border-none border-b border-gray-200 px-4 py-3.5 text-[0.9375rem] font-inherit focus:outline-none"
           value={query}
           placeholder="Search files and commands…"
           aria-label="Quick open search"
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}
         />
-        <div ref={listRef} className="command-palette-list" role="listbox">
+        <div ref={listRef} className="max-h-80 overflow-y-auto py-1.5" role="listbox">
           {isLoading ? (
-            <p className="command-palette-empty">Loading files…</p>
+            <p className="m-0 p-4 text-center text-sm text-gray-500">
+              Loading files…
+            </p>
           ) : items.length === 0 ? (
-            <p className="command-palette-empty">No matching results</p>
+            <p className="m-0 p-4 text-center text-sm text-gray-500">
+              No matching results
+            </p>
           ) : (
             items.map((item, index) => (
               <button
@@ -116,19 +119,25 @@ export function CommandPalette({
                 type="button"
                 role="option"
                 aria-selected={index === selectedIndex}
-                className={`command-palette-item${
-                  index === selectedIndex ? ' command-palette-item--active' : ''
-                }`}
+                data-active={index === selectedIndex ? 'true' : undefined}
+                className={cn(
+                  'flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-2 text-left font-inherit text-[#1a1a1a] hover:bg-indigo-50',
+                  index === selectedIndex && 'bg-indigo-50',
+                )}
                 onMouseEnter={() => setSelectedIndex(index)}
                 onClick={() => onSelect(item)}
               >
-                <span className="command-palette-item-label">{item.label}</span>
+                <span className="max-w-[45%] shrink-0 truncate text-sm">
+                  {item.label}
+                </span>
                 {item.kind === 'file' ? (
-                  <span className="command-palette-item-detail">
+                  <span className="min-w-0 flex-1 truncate text-right text-[0.8125rem] text-gray-400">
                     {item.detail}
                   </span>
                 ) : (
-                  <span className="command-palette-item-badge">Command</span>
+                  <span className="ml-auto shrink-0 text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-400">
+                    Command
+                  </span>
                 )}
               </button>
             ))

@@ -124,16 +124,18 @@ export function ImageView({
 
   if (status === 'broken' || (!displayUrl && status !== 'loading')) {
     return (
-      <NodeViewWrapper className="image-view image-view--broken" data-src={src}>
+      <NodeViewWrapper className="my-2" data-src={src}>
         <button
           type="button"
-          className="image-view__broken-button"
+          className="flex w-full cursor-pointer flex-col items-start gap-1.5 rounded-md border border-dashed border-gray-300 bg-red-50 px-4 py-3 text-left text-red-900 hover:border-red-300 hover:bg-red-100"
           onClick={openRepairMenu}
           contentEditable={false}
         >
-          <span className="image-view__broken-title">Image not found</span>
-          <span className="image-view__path">{src || 'No image path set'}</span>
-          <span className="image-view__broken-hint">Click for options</span>
+          <span className="text-sm font-semibold">Image not found</span>
+          <span className="break-all font-mono text-xs text-red-800">
+            {src || 'No image path set'}
+          </span>
+          <span className="text-xs text-red-700">Click for options</span>
         </button>
 
         {menuPosition && (
@@ -161,8 +163,9 @@ export function ImageView({
   }
 
   return (
-    <NodeViewWrapper className="image-view" data-src={src}>
+    <NodeViewWrapper className="my-2" data-src={src}>
       <img
+        className="block h-auto max-w-full rounded"
         src={displayUrl}
         alt={alt}
         draggable={false}

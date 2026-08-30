@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
+import { cn } from '../utils/cn';
 import type { FileTreeNode } from '../types/electron';
 import { getFileName } from '../utils/markdown';
 import {
@@ -33,7 +34,7 @@ function renderLinePreview(match: WorkspaceMatch): ReactNode {
   return (
     <>
       {before}
-      <mark>{highlighted}</mark>
+      <mark className="bg-yellow-300/55 text-inherit">{highlighted}</mark>
       {after}
     </>
   );
@@ -153,12 +154,12 @@ export function SidebarSearch({
   }, [fileCount, isSearching, matches.length, query]);
 
   return (
-    <div className="sidebar-search">
-      <div className="sidebar-search-controls">
+    <div className="flex min-h-full flex-col">
+      <div className="flex items-center gap-1.5 px-3 pb-1.5 pt-2">
         <input
           ref={inputRef}
           type="text"
-          className="sidebar-search-input"
+          className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-[0.8125rem] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
           value={query}
           placeholder="Search"
           aria-label="Search in workspace"
@@ -167,9 +168,10 @@ export function SidebarSearch({
         />
         <button
           type="button"
-          className={`sidebar-search-toggle${
-            caseSensitive ? ' sidebar-search-toggle--active' : ''
-          }`}
+          className={cn(
+            'inline-flex h-[1.875rem] min-w-[1.625rem] cursor-pointer items-center justify-center rounded border border-gray-300 bg-white px-1.5 text-xs text-gray-600',
+            caseSensitive && 'bg-gray-200 text-[#1a1a1a]',
+          )}
           title="Match case"
           aria-label="Match case"
           aria-pressed={caseSensitive}
@@ -178,19 +180,17 @@ export function SidebarSearch({
           Aa
         </button>
       </div>
-      <p className="sidebar-search-summary">{summaryText}</p>
-      <div className="sidebar-search-results">
+      <p className="m-0 px-3 pb-2 text-xs text-gray-500">{summaryText}</p>
+      <div className="flex-1 overflow-auto">
         {groupedResults.map((group) => (
-          <section key={group.filePath} className="sidebar-search-group">
-            <header className="sidebar-search-group-header">
-              <span className="sidebar-search-group-name">
-                {getFileName(group.filePath)}
-              </span>
-              <span className="sidebar-search-group-count">
+          <section key={group.filePath} className="border-t border-gray-200">
+            <header className="flex items-center justify-between gap-2 bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
+              <span className="truncate">{getFileName(group.filePath)}</span>
+              <span className="shrink-0 text-gray-500">
                 {group.matches.length}
               </span>
             </header>
-            <ul className="sidebar-search-match-list">
+            <ul className="m-0 list-none p-0">
               {group.matches.map((match) => {
                 const flatIndex = getFlatMatchIndex(matches, match);
                 const isActive = flatIndex === activeMatchIndex;
@@ -199,18 +199,19 @@ export function SidebarSearch({
                   <li key={`${match.filePath}:${match.line}:${match.matchStart}`}>
                     <button
                       type="button"
-                      className={`sidebar-search-match${
-                        isActive ? ' sidebar-search-match--active' : ''
-                      }`}
+                      className={cn(
+                        'flex w-full cursor-pointer items-start gap-2 border-none bg-transparent px-3 py-1.5 text-left font-inherit text-gray-700 hover:bg-indigo-50',
+                        isActive && 'bg-blue-100',
+                      )}
                       onClick={() => {
                         onActiveMatchIndexChange(flatIndex);
                         onNavigateToMatch(match, query.trim());
                       }}
                     >
-                      <span className="sidebar-search-match-line">
+                      <span className="w-7 shrink-0 text-right text-xs text-gray-400">
                         {match.line}
                       </span>
-                      <span className="sidebar-search-match-preview">
+                      <span className="min-w-0 flex-1 truncate text-[0.8125rem] leading-snug">
                         {renderLinePreview(match)}
                       </span>
                     </button>

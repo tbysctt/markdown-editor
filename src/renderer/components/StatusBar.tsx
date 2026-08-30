@@ -29,13 +29,16 @@ export function StatusBar({ editor, zoom }: StatusBarProps) {
   }, [editor]);
 
   return (
-    <footer className="status-bar" aria-live="polite">
-      <span className="status-bar-stats">
+    <footer
+      className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-4 py-1.5 text-xs text-gray-500"
+      aria-live="polite"
+    >
+      <span>
         {stats.words} {stats.words === 1 ? 'word' : 'words'} · {stats.characters}{' '}
         {stats.characters === 1 ? 'character' : 'characters'}
       </span>
-      <span className="status-bar-zoom" title="Zoom level">
-        <ZoomIcon />
+      <span className="inline-flex items-center gap-1.5" title="Zoom level">
+        <ZoomIcon className="h-3.5 w-3.5" />
         <span>{zoom}%</span>
       </span>
     </footer>

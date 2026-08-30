@@ -12,14 +12,14 @@ export function AlertView({ node }: NodeViewProps) {
   return (
     <NodeViewWrapper
       as="blockquote"
-      className={`alert alert-${alertType}`}
+      className="not-prose"
       data-alert-type={alertType}
     >
       <div className="alert-header" contentEditable={false}>
         <span className="alert-icon">
           <AlertTypeIcon type={alertType} />
         </span>
-        <span className="alert-title">{ALERT_DISPLAY_LABELS[alertType]}</span>
+        <span>{ALERT_DISPLAY_LABELS[alertType]}</span>
       </div>
       <div className="alert-content">
         <NodeViewContent />

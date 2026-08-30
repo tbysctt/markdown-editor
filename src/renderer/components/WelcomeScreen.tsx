@@ -35,6 +35,9 @@ function formatShortcut(keys: string): string {
   return keys.replace(/CmdOrCtrl/g, 'Ctrl').replace(/\+/g, '+');
 }
 
+const rowButtonClass =
+  'group -mx-2.5 flex w-full cursor-pointer items-center gap-3 rounded border-none bg-transparent px-2.5 py-2 text-left font-inherit text-[#1a1a1a] transition-colors hover:bg-gray-200';
+
 interface WelcomeActionRowProps {
   icon: ReactNode;
   label: string;
@@ -49,11 +52,15 @@ function WelcomeActionRow({
   onClick,
 }: WelcomeActionRowProps) {
   return (
-    <button type="button" className="welcome-action-row" onClick={onClick}>
-      <span className="welcome-action-row-icon">{icon}</span>
-      <span className="welcome-action-row-label">{label}</span>
+    <button type="button" className={rowButtonClass} onClick={onClick}>
+      <span className="flex w-5 shrink-0 items-center justify-center text-gray-600 [&_svg]:h-4 [&_svg]:w-4">
+        {icon}
+      </span>
+      <span className="flex-1 text-[0.9375rem] text-blue-600 group-hover:text-blue-700">
+        {label}
+      </span>
       {shortcut && (
-        <span className="welcome-action-row-shortcut">{shortcut}</span>
+        <span className="shrink-0 text-[0.8125rem] text-gray-400">{shortcut}</span>
       )}
     </button>
   );
@@ -69,12 +76,17 @@ function WelcomeRecentRow({ entry, onOpen }: WelcomeRecentRowProps) {
   const displayPath = getRecentDisplayPath(entry.path);
 
   return (
-    <button type="button" className="welcome-recent-row" onClick={onOpen}>
-      <span className="welcome-recent-row-icon">
+    <button type="button" className={rowButtonClass} onClick={onOpen}>
+      <span className="flex w-5 shrink-0 items-center justify-center text-gray-600 [&_svg]:h-4 [&_svg]:w-4">
         {entry.type === 'folder' ? <FolderIcon /> : <FileIcon />}
       </span>
-      <span className="welcome-recent-row-name">{name}</span>
-      <span className="welcome-recent-row-path" title={entry.path}>
+      <span className="max-w-[40%] shrink-0 truncate text-[0.9375rem] text-blue-600 group-hover:text-blue-700">
+        {name}
+      </span>
+      <span
+        className="min-w-0 flex-1 truncate text-right text-[0.8125rem] text-gray-400"
+        title={entry.path}
+      >
         {displayPath}
       </span>
     </button>
@@ -95,14 +107,20 @@ export function WelcomeScreen({
   );
 
   return (
-    <div className="welcome-screen">
-      <div className="welcome-content">
-        <h1 className="welcome-title">{APP_NAME}</h1>
-        <p className="welcome-version">Version {__APP_VERSION__}</p>
+    <div className="flex min-h-full justify-center overflow-y-auto bg-[#f0f2f5] px-16 py-12">
+      <div className="w-full max-w-[640px]">
+        <h1 className="mb-2 mt-0 text-4xl font-light tracking-tight text-[#1a1a1a]">
+          {APP_NAME}
+        </h1>
+        <p className="mb-10 mt-0 text-[0.8125rem] text-gray-400">
+          Version {__APP_VERSION__}
+        </p>
 
-        <section className="welcome-section">
-          <h2 className="welcome-section-title">Start</h2>
-          <div className="welcome-section-list">
+        <section className="mb-8">
+          <h2 className="mb-2 mt-0 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+            Start
+          </h2>
+          <div className="flex flex-col">
             <WelcomeActionRow
               icon={<FilePlusIcon />}
               label="New document"
@@ -124,11 +142,15 @@ export function WelcomeScreen({
           </div>
         </section>
 
-        <section className="welcome-section">
-          <h2 className="welcome-section-title">Recent</h2>
-          <div className="welcome-section-list">
+        <section className="mb-8">
+          <h2 className="mb-2 mt-0 text-[0.6875rem] font-semibold uppercase tracking-wider text-gray-500">
+            Recent
+          </h2>
+          <div className="flex flex-col">
             {recents.length === 0 ? (
-              <p className="welcome-empty">No recent folders or files</p>
+              <p className="m-0 px-2.5 py-2 text-sm italic text-gray-400">
+                No recent folders or files
+              </p>
             ) : (
               recents.map((entry) => (
                 <WelcomeRecentRow

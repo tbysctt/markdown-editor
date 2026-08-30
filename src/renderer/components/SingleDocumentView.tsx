@@ -155,7 +155,7 @@ export function SingleDocumentView({
   );
 
   return (
-    <div className="single-document-view">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <TabBar
         tabs={tabs}
         activeTabId={activeTabId}
@@ -163,9 +163,9 @@ export function SingleDocumentView({
         onCloseTab={(tabId) => void closeTab(tabId)}
         onRenameTab={handleRenameTab}
       />
-      <div className="editor-view">
+      <div className="relative flex min-h-0 flex-1 flex-col">
         {tabs.length === 0 ? (
-          <div className="workspace-empty">
+          <div className="flex flex-1 items-center justify-center text-[0.9375rem] text-gray-500">
             <p>Open a markdown file or create a new document to begin editing.</p>
           </div>
         ) : (

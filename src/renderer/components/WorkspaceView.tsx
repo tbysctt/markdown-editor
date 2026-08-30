@@ -285,7 +285,7 @@ export function WorkspaceView({ rootPath, onRegisterActions }: WorkspaceViewProp
         : '';
 
   return (
-    <div className="workspace-view">
+    <div className="flex h-full overflow-hidden">
       <Sidebar
         rootPath={rootPath}
         tree={tree}
@@ -304,7 +304,7 @@ export function WorkspaceView({ rootPath, onRegisterActions }: WorkspaceViewProp
         onDelete={handleDelete}
         onRename={handleExplorerRename}
       />
-      <div className="workspace-main">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TabBar
           tabs={tabs}
           activeTabId={activeTabId}
@@ -313,9 +313,9 @@ export function WorkspaceView({ rootPath, onRegisterActions }: WorkspaceViewProp
           onPinTab={pinTab}
           onRenameTab={handleRenameTab}
         />
-        <div className="editor-view">
+        <div className="relative flex min-h-0 flex-1 flex-col">
           {tabs.length === 0 ? (
-            <div className="workspace-empty">
+            <div className="flex flex-1 items-center justify-center text-[0.9375rem] text-gray-500">
               <p>Select a markdown file from the sidebar to begin editing.</p>
             </div>
           ) : (

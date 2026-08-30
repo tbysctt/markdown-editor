@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { cn } from '../utils/cn';
 
 interface FindBarProps {
   editor: Editor;
@@ -47,6 +48,9 @@ async function navigateToMatchIndex(
     editor.commands.goToNextResult();
   }
 }
+
+const findBtnClass =
+  'inline-flex min-w-[1.625rem] h-[1.625rem] cursor-pointer items-center justify-center rounded border-none bg-transparent px-1 text-[0.8125rem] leading-none text-gray-600 hover:bg-gray-100 hover:text-[#1a1a1a]';
 
 export function FindBar({
   editor,
@@ -124,23 +128,26 @@ export function FindBar({
   };
 
   return (
-    <div className="find-bar" role="search">
+    <div
+      className="absolute right-3 top-[calc(100%+0.375rem)] z-20 flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 py-1.5 shadow-md"
+      role="search"
+    >
       <input
         ref={inputRef}
         type="text"
-        className="find-bar-input"
+        className="w-56 rounded border border-gray-300 px-2 py-1 text-[0.8125rem] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
         value={query}
         placeholder="Find"
         aria-label="Find in document"
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
       />
-      <span className="find-bar-count" aria-live="polite">
+      <span className="min-w-[4.5rem] whitespace-nowrap text-center text-xs text-gray-500" aria-live="polite">
         {findState.currentLabel}
       </span>
       <button
         type="button"
-        className="find-bar-btn"
+        className={findBtnClass}
         title="Previous match (Shift+Enter)"
         aria-label="Previous match"
         onClick={() => {
@@ -152,7 +159,7 @@ export function FindBar({
       </button>
       <button
         type="button"
-        className="find-bar-btn"
+        className={findBtnClass}
         title="Next match (Enter)"
         aria-label="Next match"
         onClick={() => {
@@ -164,9 +171,10 @@ export function FindBar({
       </button>
       <button
         type="button"
-        className={`find-bar-btn find-bar-btn-toggle${
-          caseSensitive ? ' find-bar-btn-toggle--active' : ''
-        }`}
+        className={cn(
+          findBtnClass,
+          caseSensitive && 'bg-gray-200 text-[#1a1a1a]',
+        )}
         title="Match case"
         aria-label="Match case"
         aria-pressed={caseSensitive}
@@ -176,7 +184,7 @@ export function FindBar({
       </button>
       <button
         type="button"
-        className="find-bar-btn find-bar-btn-close"
+        className={cn(findBtnClass, 'text-lg')}
         title="Close (Escape)"
         aria-label="Close find bar"
         onClick={handleClose}
